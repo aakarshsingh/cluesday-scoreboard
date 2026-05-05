@@ -6,7 +6,7 @@
 <div style="width:100%;max-width:480px;margin-top:40px;">
 
   <div style="text-align:center;margin-bottom:32px;">
-    <div class="mono text-xs tracking-widest text-muted uppercase" style="margin-bottom:4px;">Admin</div>
+    <div class="mono text-xs tracking-widest text-muted uppercase" style="margin-bottom:4px;">Quizmaster</div>
     <h1 style="font-size:28px;font-weight:700;letter-spacing:-0.02em;">Cluesday</h1>
   </div>
 
@@ -58,7 +58,7 @@
 
   <p style="text-align:center;margin-top:20px;font-size:12px;display:flex;justify-content:center;gap:20px;">
     <a href="/quizmaster/history" style="color:var(--muted);text-decoration:none;">Past quizzes</a>
-    <a href="/admin" style="color:var(--muted);text-decoration:none;">Users</a>
+    <a th:if="${isAdmin}" href="/admin" style="color:var(--muted);text-decoration:none;">Users</a>
   </p>
 </div>
 

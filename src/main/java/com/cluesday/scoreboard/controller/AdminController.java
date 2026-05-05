@@ -3,6 +3,7 @@ package com.cluesday.scoreboard.controller;
 import com.cluesday.scoreboard.service.QuizService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,9 +30,12 @@ public class AdminController {
 	// ── Setup ─────────────────────────────────────────────────────────────────
 
 	@GetMapping
-	public String setup(Model model) {
+	public String setup(Model model, Authentication auth) {
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("activeSession", s));
 		model.addAttribute("today", LocalDate.now());
+		model.addAttribute("isAdmin", auth != null && auth.getAuthorities()
+			.stream()
+			.anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
 		return "admin/setup";
 	}
 
