@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/head :: head('Setup')}"></head>
+<body class="bg-gray-950 text-white min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md">
+  <h1 class="text-3xl font-bold mb-8 text-center">Cluesday Scoreboard</h1>
+
+  <!-- Active session warning -->
+  <div th:if="${activeSession}" class="mb-6 bg-yellow-900 border border-yellow-600 rounded-xl p-4">
+    <p class="font-semibold text-yellow-300">
+      "<span th:text="${activeSession.name()}"></span>" is already active
+      <span class="text-yellow-500 font-normal text-sm ml-1"
+            th:text="${'(' + #temporals.format(activeSession.quizDate(), 'dd MMM') + ')'}"></span>
+    </p>
+    <div class="flex gap-3 mt-3">
+      <a href="/admin/dashboard"
+         class="flex-1 text-center bg-green-700 hover:bg-green-600 py-2 rounded-lg font-medium text-sm">
+        Continue
+      </a>
+      <form method="post" action="/admin/reset" class="flex-1">
+        <button type="submit"
+                class="w-full bg-red-700 hover:bg-red-600 py-2 rounded-lg font-medium text-sm"
+                onclick="return confirm('Reset and lose all current scores?')">
+          Reset &amp; Start New
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Setup form -->
+  <form th:unless="${activeSession}" method="post" action="/admin/setup"
+        class="bg-gray-900 rounded-xl p-6 space-y-5">
+    <h2 class="text-xl font-semibold text-gray-200">New Quiz Night</h2>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Cluesday #</label>
+        <input type="number" name="sessionNumber" placeholder="538" min="1" required
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
+                      focus:outline-none focus:border-indigo-500"/>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Date</label>
+        <input type="date" name="quizDate" th:value="${today}" required
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
+                      focus:outline-none focus:border-indigo-500"/>
+      </div>
+    </div>
+
+    <div>
+      <label class="block text-sm text-gray-400 mb-1">Quizmaster Name</label>
+      <input type="text" name="quizmasterName" placeholder="e.g. Sven" required
+             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
+                    focus:outline-none focus:border-indigo-500"/>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Rounds</label>
+        <input type="number" name="maxRounds" value="6" min="1" max="20" required
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
+                      focus:outline-none focus:border-indigo-500"/>
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Pts / question</label>
+        <input type="number" name="defaultPointsPerQuestion" value="1" min="0.25" step="0.25"
+               required
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
+                      focus:outline-none focus:border-indigo-500"/>
+      </div>
+    </div>
+
+    <button type="submit"
+            class="w-full bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg font-semibold">
+      Create Quiz &rarr;
+    </button>
+  </form>
+
+  <div th:if="${error}" class="mt-4 text-red-400 text-sm text-center" th:text="${error}"></div>
+
+  <p class="mt-6 text-center text-sm text-gray-600">
+    <a href="/admin/history" class="hover:text-gray-400">View past quizzes</a>
+  </p>
+</div>
+
+</body>
+</html>

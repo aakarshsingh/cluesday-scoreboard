@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/head :: head('Add Teams')}"></head>
+<body class="bg-gray-950 text-white min-h-screen p-4">
+
+<div class="max-w-xl mx-auto">
+  <h1 class="text-2xl font-bold mb-1" th:text="${session.name()}">Quiz Night</h1>
+  <p class="text-gray-400 mb-6 text-sm"
+     th:text="${'QM: ' + session.quizmasterName() + ' · ' + #temporals.format(session.quizDate(), 'dd MMM yyyy')}">
+  </p>
+
+  <!-- ── Table selector (1–25) ───────────────────────────────────────────── -->
+  <section class="bg-gray-900 rounded-xl p-5 mb-6">
+    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Playing Tables</h2>
+    <form method="post" action="/admin/teams/set-tables">
+      <div class="grid grid-cols-5 gap-2 mb-4">
+        <th:block th:each="n : ${#numbers.sequence(1, 25)}">
+          <label th:for="'t' + ${n}"
+                 class="flex flex-col items-center gap-1 cursor-pointer group">
+            <input type="checkbox" name="tables" th:value="${n}" th:id="'t' + ${n}"
+                   th:checked="${activeTables.contains(n)}"
+                   class="sr-only peer"/>
+            <span class="w-10 h-10 flex items-center justify-center rounded-lg text-sm font-bold
+                         bg-gray-800 border border-gray-700 text-gray-400
+                         peer-checked:bg-indigo-600 peer-checked:border-indigo-500 peer-checked:text-white
+                         group-hover:border-indigo-400 transition-colors"
+                  th:text="${n}">1</span>
+          </label>
+        </th:block>
+      </div>
+      <button type="submit"
+              class="w-full bg-gray-700 hover:bg-gray-600 py-2 rounded-lg text-sm font-medium">
+        Apply Table Selection
+      </button>
+    </form>
+  </section>
+
+  <!-- ── Custom team ─────────────────────────────────────────────────────── -->
+  <section class="bg-gray-900 rounded-xl p-5 mb-6">
+    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Add Extra Team</h2>
+    <form hx-post="/admin/teams/add"
+          hx-target="#team-list"
+          hx-swap="outerHTML"
+          hx-on::after-request="this.reset()"
+          class="flex gap-2">
+      <input type="text" name="name" placeholder="Team name (optional)" autocomplete="off"
+             class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm
+                    focus:outline-none focus:border-indigo-500"/>
+      <input type="number" name="tableNumber" placeholder="T#" min="1" max="99"
+             class="w-16 bg-gray-800 border border-gray-700 rounded-lg px-2 py-2 text-white text-sm text-center
+                    focus:outline-none focus:border-indigo-500"/>
+      <button type="submit"
+              class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium">
+        Add
+      </button>
+    </form>
+  </section>
+
+  <!-- ── Registered teams ────────────────────────────────────────────────── -->
+  <ul id="team-list" class="space-y-1.5 mb-8">
+    <li th:each="team : ${teams}"
+        class="bg-gray-900 rounded-lg px-4 py-2.5 flex items-center gap-3">
+      <span class="text-xs text-indigo-400 font-mono w-6 text-right"
+            th:text="${team.tableNumber() != null} ? ${team.tableNumber()} : '—'"></span>
+      <span class="text-sm" th:text="${team.name()}">Team</span>
+    </li>
+    <li th:if="${#lists.isEmpty(teams)}" class="text-gray-600 text-sm text-center py-4">
+      No teams yet — select tables above
+    </li>
+  </ul>
+
+  <a th:if="${!#lists.isEmpty(teams)}"
+     href="/admin/dashboard"
+     class="block w-full text-center bg-green-700 hover:bg-green-600 py-3 rounded-lg font-semibold">
+    Start Quiz &rarr;
+  </a>
+</div>
+
+</body>
+</html>

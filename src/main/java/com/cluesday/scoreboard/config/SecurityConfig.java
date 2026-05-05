@@ -1,0 +1,25 @@
+package com.cluesday.scoreboard.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		return http
+			.authorizeHttpRequests(auth -> auth.requestMatchers("/live/**").permitAll().anyRequest().authenticated())
+			.httpBasic(Customizer.withDefaults())
+			// CSRF disabled: admin is protected by Basic Auth; public routes are
+			// read-only
+			.csrf(csrf -> csrf.disable())
+			.build();
+	}
+
+}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Context vars required:
+    leaderboard      List<TeamResult>
+    session          QuizSession
+    completedRounds  Set<Integer>
+-->
+<table id="scoreboard" th:fragment="table"
+       class="w-full text-sm border-collapse">
+
+  <thead>
+    <!-- Group header row (R1-R2 / R3-R4 / R5-R6) -->
+    <tr class="border-b border-gray-800 text-gray-500 text-xs">
+      <th colspan="2" class="py-2 text-left"></th><!-- rank + table# -->
+      <th class="py-2 text-left pr-6"></th><!-- team name -->
+
+      <!-- Group 1: R1-R2 -->
+      <th th:if="${completedRounds.contains(1) or completedRounds.contains(2)}"
+          colspan="2"
+          class="py-2 px-2 text-center font-medium border-l border-gray-800">R1 – R2</th>
+
+      <!-- Group 2: R3-R4 -->
+      <th th:if="${(completedRounds.contains(3) or completedRounds.contains(4)) and session.maxRounds() >= 3}"
+          colspan="2"
+          class="py-2 px-2 text-center font-medium border-l border-gray-800">R3 – R4</th>
+
+      <!-- Group 3: R5-R6 -->
+      <th th:if="${(completedRounds.contains(5) or completedRounds.contains(6)) and session.maxRounds() >= 5}"
+          colspan="2"
+          class="py-2 px-2 text-center font-medium border-l border-gray-800">R5 – R6</th>
+
+      <th class="py-2 pl-4 text-right font-bold text-white border-l border-gray-800">Total</th>
+    </tr>
+
+    <!-- Sub-header row -->
+    <tr class="border-b-2 border-gray-700 text-gray-400">
+      <th class="text-left py-2 pr-2 font-medium w-8">#</th>
+      <th class="text-left py-2 pr-4 font-medium w-10">T#</th>
+      <th class="text-left py-2 pr-6 font-medium">Team</th>
+
+      <!-- R1, R2 -->
+      <th:block th:if="${completedRounds.contains(1) or completedRounds.contains(2)}">
+        <th th:classappend="${completedRounds.contains(1)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium border-l border-gray-800">R1</th>
+        <th th:classappend="${completedRounds.contains(2)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium">R2</th>
+      </th:block>
+
+      <!-- R3, R4 -->
+      <th:block th:if="${(completedRounds.contains(3) or completedRounds.contains(4)) and session.maxRounds() >= 3}">
+        <th th:classappend="${completedRounds.contains(3)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium border-l border-gray-800">R3</th>
+        <th th:classappend="${completedRounds.contains(4)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium">R4</th>
+      </th:block>
+
+      <!-- R5, R6 -->
+      <th:block th:if="${(completedRounds.contains(5) or completedRounds.contains(6)) and session.maxRounds() >= 5}">
+        <th th:classappend="${completedRounds.contains(5)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium border-l border-gray-800">R5</th>
+        <th th:classappend="${completedRounds.contains(6)} ? 'text-gray-300' : 'text-gray-600'"
+            class="text-center py-2 px-2 font-medium">R6</th>
+      </th:block>
+
+      <th class="text-right py-2 pl-4 font-bold text-white border-l border-gray-800">Total</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr th:each="result, iter : ${leaderboard}"
+        th:classappend="${iter.index == 0} ? 'bg-yellow-950/30' : ''"
+        class="border-b border-gray-800">
+
+      <!-- Rank -->
+      <td class="py-3 pr-2 text-gray-500 font-mono text-xs" th:text="${iter.index + 1}"></td>
+
+      <!-- Table # -->
+      <td class="py-3 pr-4 text-gray-400 text-xs font-mono"
+          th:text="${result.tableNumber() != null} ? ${result.tableNumber()} : '—'"></td>
+
+      <!-- Team name -->
+      <td class="py-3 pr-6 font-semibold">
+        <span th:if="${iter.index == 0}">👑 </span>
+        <span th:text="${result.teamName()}">Team</span>
+      </td>
+
+      <!-- R1, R2 group -->
+      <th:block th:if="${completedRounds.contains(1) or completedRounds.contains(2)}">
+        <td th:with="pts=${result.roundTotals().get(1)}, joker=${result.jokerRounds().contains(1)}"
+            class="text-center py-3 px-2 border-l border-gray-800">
+          <span th:if="${completedRounds.contains(1) and pts != null and pts != 0.0}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(1) and pts != null and pts != 0.0}"
+                class="text-gray-700">—</span>
+        </td>
+        <td th:with="pts=${result.roundTotals().get(2)}, joker=${result.jokerRounds().contains(2)}"
+            class="text-center py-3 px-2">
+          <span th:if="${completedRounds.contains(2) and pts != null and pts != 0.0}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(2) and pts != null and pts != 0.0}"
+                class="text-gray-700">—</span>
+        </td>
+      </th:block>
+
+      <!-- R3, R4 group -->
+      <th:block th:if="${(completedRounds.contains(3) or completedRounds.contains(4)) and session.maxRounds() >= 3}">
+        <td th:with="pts=${result.roundTotals().get(3)}, joker=${result.jokerRounds().contains(3)}"
+            class="text-center py-3 px-2 border-l border-gray-800">
+          <span th:if="${completedRounds.contains(3) and pts != null and pts != 0.0}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(3) and pts != null and pts != 0.0}"
+                class="text-gray-700">—</span>
+        </td>
+        <td th:with="pts=${result.roundTotals().get(4)}, joker=${result.jokerRounds().contains(4)}"
+            class="text-center py-3 px-2">
+          <span th:if="${completedRounds.contains(4) and pts != null and pts != 0.0}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(4) and pts != null and pts != 0.0}"
+                class="text-gray-700">—</span>
+        </td>
+      </th:block>
+
+      <!-- R5, R6 group -->
+      <th:block th:if="${(completedRounds.contains(5) or completedRounds.contains(6)) and session.maxRounds() >= 5}">
+        <td th:with="pts=${result.roundTotals().get(5)}, joker=${result.jokerRounds().contains(5)}"
+            class="text-center py-3 px-2 border-l border-gray-800">
+          <span th:if="${completedRounds.contains(5) and pts != null and pts != 0.0}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(5) and pts != null and pts != 0.0}"
+                class="text-gray-700">—</span>
+        </td>
+        <td th:with="pts=${result.roundTotals().get(6)}, joker=${result.jokerRounds().contains(6)}"
+            class="text-center py-3 px-2">
+          <span th:if="${completedRounds.contains(6) and pts != null and pts != 0.0 and session.maxRounds() >= 6}"
+                th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
+                th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'"></span>
+          <span th:unless="${completedRounds.contains(6) and pts != null and pts != 0.0 and session.maxRounds() >= 6}"
+                class="text-gray-700">—</span>
+        </td>
+      </th:block>
+
+      <!-- Grand total -->
+      <td class="text-right py-3 pl-4 font-bold text-lg border-l border-gray-800"
+          th:text="#numbers.formatDecimal(result.grandTotal(), 1, 1)">0</td>
+    </tr>
+
+    <tr th:if="${#lists.isEmpty(leaderboard)}">
+      <td colspan="99" class="text-center py-10 text-gray-600 text-sm">
+        Scores will appear here once rounds are marked complete
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  security:
+    user:
+      name: ${ADMIN_USER:admin}
+      password: ${ADMIN_PASS:changeme}
+  thymeleaf:
+    cache: false
+  mvc:
+    async:
+      request-timeout: -1
