@@ -1,88 +1,208 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/head :: head('Setup')}"></head>
-<body class="bg-gray-950 text-white min-h-screen flex items-center justify-center p-4">
+<body style="display:flex;align-items:flex-start;justify-content:center;min-height:100vh;padding:16px;">
 
-<div class="w-full max-w-md">
-  <h1 class="text-3xl font-bold mb-8 text-center">Cluesday Scoreboard</h1>
+<div style="width:100%;max-width:480px;margin-top:40px;">
 
-  <!-- Active session warning -->
-  <div th:if="${activeSession}" class="mb-6 bg-yellow-900 border border-yellow-600 rounded-xl p-4">
-    <p class="font-semibold text-yellow-300">
-      "<span th:text="${activeSession.name()}"></span>" is already active
-      <span class="text-yellow-500 font-normal text-sm ml-1"
-            th:text="${'(' + #temporals.format(activeSession.quizDate(), 'dd MMM') + ')'}"></span>
-    </p>
-    <div class="flex gap-3 mt-3">
-      <a href="/admin/dashboard"
-         class="flex-1 text-center bg-green-700 hover:bg-green-600 py-2 rounded-lg font-medium text-sm">
-        Continue
-      </a>
-      <form method="post" action="/admin/reset" class="flex-1">
-        <button type="submit"
-                class="w-full bg-red-700 hover:bg-red-600 py-2 rounded-lg font-medium text-sm"
-                onclick="return confirm('Reset and lose all current scores?')">
-          Reset &amp; Start New
-        </button>
+  <div style="text-align:center;margin-bottom:32px;">
+    <div class="mono text-xs tracking-widest text-muted uppercase" style="margin-bottom:4px;">Admin</div>
+    <h1 style="font-size:28px;font-weight:700;letter-spacing:-0.02em;">Cluesday</h1>
+  </div>
+
+  <!-- Active session -->
+  <div th:if="${activeSession}" class="card p-5 mb-6"
+       style="border-color:#3d2f00;background:#1a1300;">
+    <div class="mono text-xs text-amber uppercase tracking-widest" style="margin-bottom:4px;">Active quiz</div>
+    <p class="font-semibold" th:text="${activeSession.name()}">Cluesday N</p>
+    <p class="text-sm text-muted" style="margin-top:4px;"
+       th:text="${#temporals.format(activeSession.quizDate(), 'dd MMM yyyy')}"></p>
+    <div style="display:flex;gap:12px;margin-top:16px;">
+      <a href="/quizSetup/dashboard" class="btn-primary" style="flex:1;text-align:center;padding:8px 16px;font-size:13px;">Continue →</a>
+      <form method="post" action="/quizSetup/reset" style="flex:1;">
+        <button type="submit" class="btn-danger w-full"
+                onclick="return confirm('Reset and lose all scores?')">Reset</button>
       </form>
     </div>
   </div>
 
   <!-- Setup form -->
-  <form th:unless="${activeSession}" method="post" action="/admin/setup"
-        class="bg-gray-900 rounded-xl p-6 space-y-5">
-    <h2 class="text-xl font-semibold text-gray-200">New Quiz Night</h2>
+  <form th:unless="${activeSession}" method="post" action="/quizSetup/setup"
+        class="card p-6" id="setup-form">
+    <h2 class="font-semibold" style="font-size:15px;margin-bottom:20px;">New Quiz Night</h2>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid-2 mb-4">
       <div>
-        <label class="block text-sm text-gray-400 mb-1">Cluesday #</label>
-        <input type="number" name="sessionNumber" placeholder="538" min="1" required
-               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
-                      focus:outline-none focus:border-indigo-500"/>
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Cluesday #</label>
+        <input type="number" name="sessionNumber" id="sessionNumber"
+               placeholder="538" min="1" required class="field"/>
       </div>
       <div>
-        <label class="block text-sm text-gray-400 mb-1">Date</label>
-        <input type="date" name="quizDate" th:value="${today}" required
-               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
-                      focus:outline-none focus:border-indigo-500"/>
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Date</label>
+        <input type="date" name="quizDate" id="quizDate" required class="field"/>
       </div>
     </div>
 
-    <div>
-      <label class="block text-sm text-gray-400 mb-1">Quizmaster Name</label>
-      <input type="text" name="quizmasterName" placeholder="e.g. Sven" required
-             class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
-                    focus:outline-none focus:border-indigo-500"/>
+    <div class="mb-4">
+      <label class="block text-xs text-muted" style="margin-bottom:6px;">Quizmaster</label>
+      <input type="text" name="quizmasterName" placeholder="e.g. RRK"
+             required autocomplete="off" class="field"/>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid-2 mb-5">
       <div>
-        <label class="block text-sm text-gray-400 mb-1">Rounds</label>
-        <input type="number" name="maxRounds" value="6" min="1" max="20" required
-               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
-                      focus:outline-none focus:border-indigo-500"/>
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Rounds</label>
+        <input type="number" name="maxRounds" id="maxRounds" value="6" min="1" max="20"
+               required class="field"/>
       </div>
       <div>
-        <label class="block text-sm text-gray-400 mb-1">Pts / question</label>
-        <input type="number" name="defaultPointsPerQuestion" value="1" min="0.25" step="0.25"
-               required
-               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white
-                      focus:outline-none focus:border-indigo-500"/>
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Default pts / Q</label>
+        <input type="number" name="defaultPointsPerQuestion" id="defPts"
+               value="1" min="0.25" step="0.25" required class="field"/>
       </div>
     </div>
 
-    <button type="submit"
-            class="w-full bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg font-semibold">
-      Create Quiz &rarr;
-    </button>
+    <!-- Round config accordion -->
+    <details id="round-details" style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:16px;">
+      <summary style="display:flex;align-items:center;justify-content:space-between;
+                      padding:10px 14px;cursor:pointer;background:var(--surf2);font-size:12px;color:var(--muted);">
+        <span style="text-transform:uppercase;letter-spacing:.08em;">Configure rounds</span>
+        <span class="mono">&#9656;</span>
+      </summary>
+      <div style="background:var(--surf2);padding:12px 14px;">
+        <div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;
+                    margin-bottom:8px;font-size:11px;color:var(--muted);padding:0 2px;">
+          <span>#</span><span>Questions</span><span>Type</span>
+        </div>
+        <div id="round-rows"></div>
+      </div>
+    </details>
+
+    <!-- Per-question overrides (lazy rendered when opened) -->
+    <details id="qpts-details" style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:20px;">
+      <summary style="display:flex;align-items:center;justify-content:space-between;
+                      padding:10px 14px;cursor:pointer;background:var(--surf2);font-size:12px;color:var(--muted);">
+        <span style="text-transform:uppercase;letter-spacing:.08em;">Per-question points &amp; scoring</span>
+        <span class="mono">&#9656;</span>
+      </summary>
+      <div style="background:var(--surf2);padding:12px 14px;">
+        <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+          Normal/Negative: override max pts per Q.&#160;&#160;Dynamic: set max / min per question.
+        </p>
+        <div id="qpts-rows"></div>
+      </div>
+    </details>
+
+    <button type="submit" class="btn-primary w-full">Create Quiz &#8594;</button>
   </form>
 
-  <div th:if="${error}" class="mt-4 text-red-400 text-sm text-center" th:text="${error}"></div>
+  <div th:if="${error}" style="color:var(--red);font-size:13px;text-align:center;margin-top:16px;"
+       th:text="${error}"></div>
 
-  <p class="mt-6 text-center text-sm text-gray-600">
-    <a href="/admin/history" class="hover:text-gray-400">View past quizzes</a>
+  <p style="text-align:center;margin-top:20px;font-size:12px;">
+    <a href="/quizSetup/history" style="color:var(--muted);text-decoration:none;">Past quizzes</a>
   </p>
 </div>
+
+<script defer>
+  // ── Session number from localStorage ──────────────────────────────────────
+  (function () {
+    const last = parseInt(localStorage.getItem('cluesdayLastNum'));
+    document.getElementById('sessionNumber').value = (!isNaN(last) && last > 0) ? last + 1 : 538;
+  })();
+
+  document.getElementById('setup-form').addEventListener('submit', function () {
+    const val = parseInt(document.getElementById('sessionNumber').value);
+    if (!isNaN(val)) localStorage.setItem('cluesdayLastNum', val);
+  });
+
+  // ── Default date = next Tuesday (quiz is always on Tuesday) ───────────────
+  (function () {
+    const d = new Date();
+    const day = d.getDay(); // 0=Sun 2=Tue
+    const daysUntil = day === 2 ? 0 : (2 - day + 7) % 7;
+    d.setDate(d.getDate() + daysUntil);
+    const iso = d.toISOString().split('T')[0];
+    document.getElementById('quizDate').value = iso;
+  })();
+
+  // ── Round config builder ───────────────────────────────────────────────────
+  const DEFS = {
+    1:{q:5,rt:'NORMAL'}, 2:{q:5,rt:'NORMAL'}, 3:{q:5,rt:'NORMAL'},
+    4:{q:5,rt:'NORMAL'}, 5:{q:5,rt:'NEGATIVE'}, 6:{q:5,rt:'NORMAL'}
+  };
+
+  function rebuildRounds() {
+    const n = Math.max(1, Math.min(20, parseInt(document.getElementById('maxRounds').value) || 6));
+    const rows = document.getElementById('round-rows');
+    rows.innerHTML = '';
+    for (let r = 1; r <= n; r++) {
+      const def = DEFS[r] || {q:5, rt:'NORMAL'};
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;margin-bottom:8px;align-items:center;';
+      row.innerHTML =
+        `<span class="mono" style="font-size:11px;color:var(--muted);">R${r}</span>` +
+        `<input type="number" name="q" id="rq_${r}" value="${def.q}" min="0" max="50" class="field-sm" style="width:100%;"/>` +
+        `<select name="rt" id="rt_${r}" class="field-sm" style="width:100%;">
+           <option value="NORMAL"${def.rt==='NORMAL'?' selected':''}>Normal</option>
+           <option value="NEGATIVE"${def.rt==='NEGATIVE'?' selected':''}>Negative (&#8722;1/0/+1)</option>
+           <option value="DYNAMIC"${def.rt==='DYNAMIC'?' selected':''}>Dynamic Scoring</option>
+         </select>`;
+      rows.appendChild(row);
+    }
+    if (document.getElementById('qpts-details').open) rebuildQPts();
+  }
+
+  function rebuildQPts() {
+    const defPts = parseFloat(document.getElementById('defPts').value) || 1;
+    const maxR   = Math.max(1, Math.min(20, parseInt(document.getElementById('maxRounds').value) || 6));
+    const container = document.getElementById('qpts-rows');
+    container.innerHTML = '';
+    for (let r = 1; r <= maxR; r++) {
+      const qEl  = document.getElementById('rq_' + r);
+      const rtEl = document.getElementById('rt_' + r);
+      const qCount = qEl ? parseInt(qEl.value) || 0 : 5;
+      const isDynamic = rtEl && rtEl.value === 'DYNAMIC';
+      if (qCount === 0) continue;
+      const sec = document.createElement('div');
+      sec.style.cssText = 'margin-bottom:14px;';
+      sec.innerHTML = `<div class="mono" style="font-size:11px;color:var(--muted);margin-bottom:6px;">
+        R${r}${isDynamic?' <span style="color:var(--amber);font-size:10px;">Dynamic</span>':''}</div>`;
+      const grid = document.createElement('div');
+      const cols = Math.min(qCount, isDynamic ? 4 : 8);
+      grid.style.cssText = `display:grid;grid-template-columns:repeat(${cols},1fr);gap:4px;`;
+      for (let q = 1; q <= qCount; q++) {
+        const cell = document.createElement('div');
+        cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;';
+        if (isDynamic) {
+          cell.innerHTML =
+            `<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">Q${q}</span>` +
+            `<input type="number" name="qpt_${r}_${q}" value="${defPts}" min="0" step="0.25"
+                    class="field-sm" style="width:100%;text-align:center;padding:3px 4px;" title="Max pts Q${q}"/>` +
+            `<input type="number" name="qptmin_${r}_${q}" value="${-defPts}" step="0.25"
+                    class="field-sm" style="width:100%;text-align:center;padding:3px 4px;
+                    border-top:none;border-radius:0 0 4px 4px;" title="Min pts Q${q}"/>`;
+        } else {
+          cell.innerHTML =
+            `<span style="font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;">Q${q}</span>` +
+            `<input type="number" name="qpt_${r}_${q}" value="${defPts}" min="0.25" step="0.25"
+                    class="field-sm" style="width:100%;text-align:center;padding:3px 4px;"/>`;
+        }
+        grid.appendChild(cell);
+      }
+      sec.appendChild(grid);
+      container.appendChild(sec);
+    }
+  }
+
+  document.getElementById('maxRounds').addEventListener('change', rebuildRounds);
+  document.getElementById('defPts').addEventListener('change', rebuildQPts);
+  document.getElementById('qpts-details').addEventListener('toggle', function () {
+    if (this.open) rebuildQPts();
+  });
+
+  rebuildRounds();
+</script>
 
 </body>
 </html>

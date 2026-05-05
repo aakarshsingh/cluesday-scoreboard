@@ -1,71 +1,111 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title th:text="${session != null} ? (${session.name()} + ' — Live') : 'Quiz Ended'">Live Scoreboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-950 text-white min-h-screen">
+<head th:replace="~{layout/head :: head('Live')}"></head>
+<body style="min-height:100vh;">
 
-<!-- ── Quiz ended (no active session for this UUID) ────────────────────────── -->
-<div th:if="${ended}" class="flex items-center justify-center min-h-screen">
-  <div class="text-center">
-    <p class="text-3xl font-bold mb-2">Quiz has ended</p>
-    <p class="text-gray-500">Thanks for playing!</p>
+<!-- Quiz ended -->
+<div th:if="${ended}"
+     style="display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
+  <div>
+    <div class="text-2xl font-bold mb-2">Quiz has ended</div>
+    <p class="text-sm text-muted">Thanks for playing!</p>
   </div>
 </div>
 
-<!-- ── Live scoreboard ─────────────────────────────────────────────────────── -->
-<div th:unless="${ended}" class="max-w-2xl mx-auto p-4">
+<!-- Live scoreboard -->
+<div th:unless="${ended}" style="max-width:680px;margin:0 auto;padding:24px 16px;">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6 pt-2">
-    <h1 class="text-2xl font-bold" th:text="${session.name()}">Quiz Night</h1>
-    <span class="flex items-center gap-1.5 text-sm text-green-400">
-      <span id="status-dot" class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-      <span id="status-text">Live</span>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="mono text-xs text-muted uppercase tracking-widest" style="margin-bottom:4px;">Live</div>
+      <h1 style="font-size:22px;font-weight:700;" th:text="${quizSession.name()}">Cluesday</h1>
+    </div>
+    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);">
+      <span id="status-dot"
+            style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                   background:var(--green);animation:pulse 2s infinite;"></span>
+      <span id="status-text" class="mono">LIVE</span>
     </span>
   </div>
 
-  <!-- Scoreboard container (swapped on SSE updates) -->
-  <div id="scoreboard-container">
+  <div id="scoreboard-container" class="card" style="overflow:hidden;">
     <th:block th:replace="~{fragments/scoreboard-table :: table}"></th:block>
   </div>
 
+  <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;">
+    Click any column header to sort
+  </p>
 </div>
+
+<style>
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  #scoreboard th { transition: color 150ms; }
+  #scoreboard th:hover { color: var(--text) !important; }
+</style>
 
 <script th:unless="${ended}" th:inline="javascript">
   const uuid = /*[[${uuid}]]*/ '';
 
+  // ── Sort state ──────────────────────────────────────────────────────────────
+  let sbSortCol = null;   // null = server order (by total desc)
+  let sbSortAsc = false;
+
+  function parseVal(txt) {
+    if (!txt) return -99999;
+    const clean = txt.replace('★', '').replace('—', '').trim();
+    if (!clean) return -99999;
+    if (clean.startsWith('T')) return parseInt(clean.slice(1)) || 0;
+    return parseFloat(clean) || 0;
+  }
+
+  function applySortToTable() {
+    if (sbSortCol === null) return;
+    const tbody = document.querySelector('#scoreboard tbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr[data-row]'));
+    if (rows.length < 2) return;
+    rows.sort((a, b) => {
+      const av = parseVal(a.querySelectorAll('td')[sbSortCol]?.textContent?.trim());
+      const bv = parseVal(b.querySelectorAll('td')[sbSortCol]?.textContent?.trim());
+      return sbSortAsc ? av - bv : bv - av;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+  }
+
+  // Called by inline onclick in the fragment headers
+  window.sortSB = function(col) {
+    if (sbSortCol === col) {
+      sbSortAsc = !sbSortAsc;
+    } else {
+      sbSortCol = col;
+      sbSortAsc = (col === 1); // T# sorts ascending by default
+    }
+    applySortToTable();
+  };
+
+  // ── SSE ────────────────────────────────────────────────────────────────────
   const src = new EventSource('/live/' + uuid + '/events');
 
-  src.addEventListener('score-update', (e) => {
+  src.addEventListener('score-update', e => {
     document.getElementById('scoreboard-container').innerHTML = e.data;
+    applySortToTable(); // re-apply current sort after update
   });
 
-  src.addEventListener('quiz-ended', (e) => {
+  src.addEventListener('quiz-ended', e => {
     document.getElementById('scoreboard-container').innerHTML = e.data;
     src.close();
-    const dot  = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    if (dot)  { dot.classList.remove('bg-green-400', 'animate-pulse'); dot.classList.add('bg-gray-600'); }
-    if (text) { text.textContent = 'Ended'; text.classList.replace('text-green-400', 'text-gray-500'); }
+    setStatus('var(--muted)', 'ENDED', false);
   });
 
-  src.onerror = () => {
-    const dot  = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    if (dot)  { dot.classList.replace('bg-green-400', 'bg-yellow-400'); dot.classList.remove('animate-pulse'); }
-    if (text) { text.textContent = 'Reconnecting…'; text.classList.replace('text-green-400', 'text-yellow-400'); }
-  };
+  src.onerror  = () => setStatus('var(--amber)', '...', false);
+  src.onopen   = () => setStatus('var(--green)', 'LIVE', true);
 
-  src.onopen = () => {
-    const dot  = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    if (dot)  { dot.classList.replace('bg-yellow-400', 'bg-green-400'); dot.classList.add('animate-pulse'); }
-    if (text) { text.textContent = 'Live'; text.classList.replace('text-yellow-400', 'text-green-400'); }
-  };
+  function setStatus(color, text, pulse) {
+    const dot   = document.getElementById('status-dot');
+    const label = document.getElementById('status-text');
+    if (dot)   { dot.style.background = color; dot.style.animation = pulse ? 'pulse 2s infinite' : 'none'; }
+    if (label) { label.textContent = text; label.parentElement.style.color = color; }
+  }
 </script>
 
 </body>

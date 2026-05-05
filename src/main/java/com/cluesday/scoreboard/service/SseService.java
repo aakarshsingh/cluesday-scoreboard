@@ -2,6 +2,8 @@ package com.cluesday.scoreboard.service;
 
 import com.cluesday.scoreboard.event.QuizEndedEvent;
 import com.cluesday.scoreboard.event.ScoreChangedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -17,7 +19,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class SseService {
 
-	private final CopyOnWriteArrayList<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+	private static final Logger log = LoggerFactory.getLogger(SseService.class);
+
+	private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
 	private final QuizService quizService;
 
@@ -45,18 +49,23 @@ public class SseService {
 	@EventListener
 	public void onQuizEnded(QuizEndedEvent event) {
 		broadcast("quiz-ended",
-				"<div id=\"scoreboard\" class=\"text-center py-16 text-2xl font-bold\">Quiz has ended — thanks for playing!</div>");
+				"<div style=\"text-align:center;padding:64px 20px;font-size:24px;font-weight:700;\">Quiz has ended — thanks for playing!</div>");
 		emitters.forEach(SseEmitter::complete);
 		emitters.clear();
 	}
 
 	private void broadcastScoreboard() {
-		var ctx = new Context();
-		ctx.setVariable("leaderboard", quizService.computeLeaderboard());
-		ctx.setVariable("completedRounds", quizService.getCompletedRounds());
-		quizService.getActiveSession().ifPresent(s -> ctx.setVariable("session", s));
-		String html = templateEngine.process("fragments/scoreboard-table :: table", ctx);
-		broadcast("score-update", html);
+		try {
+			var ctx = new Context();
+			ctx.setVariable("leaderboard", quizService.computeLeaderboard());
+			ctx.setVariable("completedRounds", quizService.getCompletedRounds());
+			quizService.getActiveSession().ifPresent(s -> ctx.setVariable("quizSession", s));
+			String html = templateEngine.process("fragments/scoreboard-table :: table", ctx);
+			broadcast("score-update", html);
+		}
+		catch (Exception e) {
+			log.error("broadcastScoreboard failed — check scoreboard-table.html: {}", e.getMessage());
+		}
 	}
 
 	private void broadcast(String eventName, String data) {

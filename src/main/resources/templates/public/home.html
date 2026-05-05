@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/head :: head('Cluesday')}"></head>
+<body style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;">
+
+<div style="width:100%;max-width:360px;text-align:center;">
+  <div class="mono text-xs tracking-widest text-muted uppercase mb-6">Live Quiz Scoring</div>
+  <h1 class="text-3xl font-bold mb-2" style="letter-spacing:-0.02em;">Cluesday</h1>
+  <p class="text-sm text-muted mb-10">Quiz night, scored in real time.</p>
+
+  <div th:if="${activeSession}" class="card p-5 text-left mb-6"
+       style="border-color:#3d2f00;background:#120f00;">
+    <div class="mono text-xs text-muted uppercase tracking-widest mb-2">Now playing</div>
+    <div class="font-semibold mb-1" th:text="${activeSession.name()}">Cluesday N</div>
+    <div class="text-sm text-muted mb-4"
+         th:text="${'QM: ' + activeSession.quizmasterName() + ' &#183; ' + #temporals.format(activeSession.quizDate(), 'dd MMM yyyy')}"></div>
+    <a th:href="'/live/' + ${activeSession.uuid()}"
+       class="btn-primary block w-full" style="padding:10px;font-size:14px;">
+      View Live Scoreboard &#8594;
+    </a>
+  </div>
+
+  <div th:unless="${activeSession}" class="card p-5 mb-8">
+    <div class="mono text-xs text-muted uppercase tracking-widest mb-2">Status</div>
+    <p class="text-sm text-muted">No quiz is currently active.</p>
+  </div>
+</div>
+
+</body>
+</html>

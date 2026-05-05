@@ -21,6 +21,12 @@ public class PublicController {
 		this.sseService = sseService;
 	}
 
+	@GetMapping("/")
+	public String home(Model model) {
+		quizService.getActiveSession().ifPresent(s -> model.addAttribute("activeSession", s));
+		return "public/home";
+	}
+
 	@GetMapping("/live/{uuid}")
 	public String scoreboard(@PathVariable String uuid, Model model) {
 		var session = quizService.getActiveSession().filter(s -> s.uuid().equals(uuid));
@@ -30,7 +36,7 @@ public class PublicController {
 			return "public/scoreboard";
 		}
 
-		model.addAttribute("session", session.get());
+		model.addAttribute("quizSession", session.get());
 		model.addAttribute("leaderboard", quizService.computeLeaderboard());
 		model.addAttribute("completedRounds", quizService.getCompletedRounds());
 		model.addAttribute("uuid", uuid);

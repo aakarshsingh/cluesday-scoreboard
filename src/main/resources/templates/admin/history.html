@@ -1,44 +1,44 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/head :: head('History')}"></head>
-<body class="bg-gray-950 text-white min-h-screen p-4">
+<body style="padding:16px;">
+<div class="max-w-lg mx-auto">
 
-<div class="max-w-xl mx-auto">
   <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold">Quiz History</h1>
-    <a href="/admin" class="text-gray-400 hover:text-white text-sm">&larr; Back</a>
+    <div>
+      <div class="mono text-xs tracking-widest text-muted uppercase mb-1">Admin</div>
+      <h1 class="text-2xl font-bold">Quiz History</h1>
+    </div>
+    <a href="/quizSetup" class="btn-ghost" style="padding:6px 12px;font-size:12px;">&#8592; Back</a>
   </div>
 
   <div th:if="${#lists.isEmpty(history)}"
-       class="text-center py-16 text-gray-600">
+       class="text-center text-sm text-muted" style="padding:64px 0;">
     No quizzes completed yet.
   </div>
 
-  <ul th:unless="${#lists.isEmpty(history)}" class="space-y-3">
+  <ul th:unless="${#lists.isEmpty(history)}" style="display:flex;flex-direction:column;gap:8px;">
     <li th:each="snap : ${history}">
-      <a th:href="'/admin/history/' + ${snap.sessionUuid()}"
-         class="flex items-center justify-between bg-gray-900 hover:bg-gray-800 rounded-xl px-5 py-4 transition-colors">
+      <a th:href="'/quizSetup/history/' + ${snap.sessionUuid()}"
+         class="card flex items-center justify-between"
+         style="padding:16px 20px;text-decoration:none;display:flex;transition:border-color 80ms;"
+         onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
         <div>
-          <p class="font-semibold" th:text="${snap.sessionName()}">Quiz Night</p>
-          <p class="text-sm text-gray-500 mt-0.5"
-             th:text="${#temporals.format(snap.completedAt(), 'dd MMM yyyy, HH:mm')}">
-          </p>
+          <p class="font-semibold text-sm" th:text="${snap.sessionName()}">Cluesday N</p>
+          <p class="mono text-xs text-muted mt-1"
+             th:text="${#temporals.format(snap.completedAt(), 'dd MMM yyyy, HH:mm')}"></p>
         </div>
         <div class="text-right">
-          <p class="text-sm text-gray-400"
-             th:text="${#lists.size(snap.leaderboard())} + ' teams'">
-          </p>
-          <p class="text-xs text-gray-600 mt-0.5">
-            Winner:
-            <span th:if="${!#lists.isEmpty(snap.leaderboard())}"
-                  th:text="${snap.leaderboard().get(0).teamName()}" class="text-gray-400">
-            </span>
-          </p>
+          <p class="mono text-xs text-muted"
+             th:text="${#lists.size(snap.leaderboard())} + ' tables'"></p>
+          <p class="mono text-xs text-amber mt-1"
+             th:if="${!#lists.isEmpty(snap.leaderboard())}"
+             th:text="${snap.leaderboard().get(0).displayName()} + ' won'"></p>
         </div>
       </a>
     </li>
   </ul>
-</div>
 
+</div>
 </body>
 </html>

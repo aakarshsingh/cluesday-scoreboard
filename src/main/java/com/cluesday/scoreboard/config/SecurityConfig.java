@@ -14,10 +14,9 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		return http
-			.authorizeHttpRequests(auth -> auth.requestMatchers("/live/**").permitAll().anyRequest().authenticated())
+			.authorizeHttpRequests(
+					auth -> auth.requestMatchers("/", "/live/**").permitAll().anyRequest().authenticated())
 			.httpBasic(Customizer.withDefaults())
-			// CSRF disabled: admin is protected by Basic Auth; public routes are
-			// read-only
 			.csrf(csrf -> csrf.disable())
 			.build();
 	}

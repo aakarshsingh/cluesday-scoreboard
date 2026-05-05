@@ -1,62 +1,60 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/head :: head('History')}"></head>
-<body class="bg-gray-950 text-white min-h-screen p-4">
-
+<body style="padding:16px;">
 <div class="max-w-2xl mx-auto">
+
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold" th:text="${snapshot.sessionName()}">Quiz Night</h1>
-      <p class="text-sm text-gray-500 mt-1"
+      <div class="mono text-xs tracking-widest text-muted uppercase mb-1">Completed</div>
+      <h1 class="text-2xl font-bold" th:text="${snapshot.sessionName()}">Cluesday N</h1>
+      <p class="mono text-xs text-muted mt-1"
          th:text="${#temporals.format(snapshot.completedAt(), 'dd MMM yyyy, HH:mm')}"></p>
     </div>
-    <a href="/admin/history" class="text-gray-400 hover:text-white text-sm">&larr; History</a>
+    <a href="/quizSetup/history" class="btn-ghost" style="padding:6px 12px;font-size:12px;">&#8592; History</a>
   </div>
 
-  <!-- Final leaderboard — same visual as live scoreboard -->
-  <div th:with="leaderboard=${snapshot.leaderboard()},
-                maxRound=${#lists.isEmpty(leaderboard) ? 0 :
-                  leaderboard.get(0).roundTotals().size()}">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b-2 border-gray-700 text-gray-400">
-          <th class="text-left py-3 pr-2 font-medium">#</th>
-          <th class="text-left py-3 pr-2 font-medium">T#</th>
-          <th class="text-left py-3 pr-6 font-medium">Team</th>
-          <th th:each="r : ${#numbers.sequence(1, maxRound)}"
-              th:text="'R' + ${r}"
-              class="text-center py-3 px-2 font-medium">
-          </th>
-          <th class="text-right py-3 pl-4 font-bold text-white">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr th:each="result, iter : ${leaderboard}"
-            th:classappend="${iter.index == 0} ? 'bg-yellow-950/30' : ''"
-            class="border-b border-gray-800">
-          <td class="py-3 pr-2 text-gray-500 font-mono" th:text="${iter.index + 1}"></td>
-          <td class="py-3 pr-2 text-gray-400 text-xs" th:text="${result.tableNumber() != null} ? ('T' + result.tableNumber()) : '—'"></td>
-          <td class="py-3 pr-6 font-semibold">
-            <span th:if="${iter.index == 0}">👑 </span>
-            <span th:text="${result.teamName()}"></span>
-          </td>
-          <td th:each="r : ${#numbers.sequence(1, maxRound)}"
-              class="text-center py-3 px-2">
-            <span th:with="pts=${result.roundTotals().get(r)}, joker=${result.jokerRounds().contains(r)}">
-              <span th:if="${pts != null and pts != 0.0}"
-                    th:text="${joker} ? (#numbers.formatDecimal(pts, 1, 1) + '★') : #numbers.formatDecimal(pts, 1, 1)"
-                    th:classappend="${joker} ? 'text-yellow-400 font-medium' : 'text-gray-200'">
-              </span>
-              <span th:if="${pts == null or pts == 0.0}" class="text-gray-700">—</span>
-            </span>
-          </td>
-          <td class="text-right py-3 pl-4 font-bold text-lg"
-              th:text="#numbers.formatDecimal(result.grandTotal(), 1, 1)"></td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="card" style="overflow:hidden;">
+    <div th:with="leaderboard=${snapshot.leaderboard()},
+                  maxRound=${#lists.isEmpty(leaderboard) ? 0 : leaderboard.get(0).roundTotals().size()}">
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th class="left" style="width:32px;">#</th>
+            <th class="left" style="width:48px;">T#</th>
+            <th th:each="r : ${#numbers.sequence(1, maxRound)}"
+                th:text="'R' + ${r}"
+                style="text-align:center;border-left:1px solid var(--border);"></th>
+            <th style="text-align:right;border-left:1px solid var(--border);">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:each="result, iter : ${leaderboard}"
+              th:style="${iter.index == 0} ? 'background:#1a1300;' : ''">
+            <td class="mono text-xs left text-muted" th:text="${iter.index + 1}"></td>
+            <td class="mono font-medium left"
+                th:style="${iter.index == 0} ? 'color:var(--amber);' : 'color:#7a9fff;'"
+                th:text="${result.displayName()}">T1</td>
+            <td th:each="r : ${#numbers.sequence(1, maxRound)}"
+                th:with="pts=${result.roundTotals().get(r)}, joker=${result.jokerRounds().contains(r)}"
+                style="text-align:center;border-left:1px solid var(--border);">
+              <th:block th:if="${pts != null and pts != 0.0}">
+                <span th:text="#numbers.formatDecimal(pts, 1, 1)"
+                      th:style="${joker} ? 'color:var(--amber);font-weight:600;font-family:DM Mono,monospace;' : 'font-family:DM Mono,monospace;'"></span>
+                <span th:if="${joker}" style="color:var(--amber);font-family:'DM Mono',monospace;">&#9733;</span>
+              </th:block>
+              <span th:unless="${pts != null and pts != 0.0}"
+                    style="color:var(--border);font-family:'DM Mono',monospace;">&#8212;</span>
+            </td>
+            <td class="mono font-bold" style="text-align:right;border-left:1px solid var(--border);font-size:15px;"
+                th:style="${iter.index == 0} ? 'color:var(--amber);' : ''"
+                th:text="#numbers.formatDecimal(result.grandTotal(), 1, 1)"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
+
 </div>
-
 </body>
 </html>
