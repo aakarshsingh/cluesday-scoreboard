@@ -52,9 +52,7 @@
               style="color:#2a2e40;font-family:'DM Mono',monospace;">&#8212;</span>
       </td>
 
-      <td style="text-align:center;padding:10px 14px;font-weight:700;font-size:16px;
-                 border-left:1px solid #1e2438;font-family:'DM Mono',monospace;"
-          th:style="${iter.index == 0} ? 'color:#f0a500;' : 'color:#dde1f0;'"
+      <td th:style="${iter.index == 0} ? 'text-align:center;padding:10px 14px;font-weight:700;font-size:16px;border-left:1px solid #1e2438;font-family:DM Mono,monospace;color:#f0a500;' : 'text-align:center;padding:10px 14px;font-weight:700;font-size:16px;border-left:1px solid #1e2438;font-family:DM Mono,monospace;color:#dde1f0;'"
           th:text="${#numbers.formatDecimal(result.grandTotal(), 1, 1)}">0</td>
     </tr>
 
