@@ -17,7 +17,7 @@
   <!-- Table selector -->
   <section class="card p-5 mb-4">
     <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-4">Playing Tables</h2>
-    <form method="post" action="/quizSetup/teams/set-tables">
+    <form method="post" action="/quizmaster/teams/set-tables">
       <div class="grid-5 mb-4">
         <!-- Tables 1–24 -->
         <th:block th:each="n : ${#numbers.sequence(1, 24)}">
@@ -43,7 +43,7 @@
   <!-- Add extra team -->
   <section class="card p-5 mb-4">
     <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-3">Add Extra Team</h2>
-    <form hx-post="/quizSetup/teams/add"
+    <form hx-post="/quizmaster/teams/add"
           hx-target="#team-list"
           hx-swap="outerHTML"
           hx-on::after-request="this.reset()"
@@ -69,7 +69,7 @@
   </ul>
 
   <a th:if="${!#lists.isEmpty(teams)}"
-     href="/quizSetup/dashboard"
+     href="/quizmaster/dashboard"
      class="btn-primary block w-full text-sm" style="padding:12px;font-size:14px;text-align:center;">
     Start Quiz &#8594;
   </a>

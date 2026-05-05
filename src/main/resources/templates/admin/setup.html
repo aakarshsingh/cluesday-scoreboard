@@ -18,9 +18,9 @@
     <p class="text-sm text-muted" style="margin-top:4px;"
        th:text="${#temporals.format(activeSession.quizDate(), 'dd MMM yyyy')}"></p>
     <div style="display:flex;gap:12px;margin-top:16px;">
-      <a href="/quizSetup/dashboard" class="btn-primary"
+      <a href="/quizmaster/dashboard" class="btn-primary"
          style="flex:1;text-align:center;padding:8px 16px;font-size:13px;">Continue &#8594;</a>
-      <form method="post" action="/quizSetup/reset" style="flex:1;">
+      <form method="post" action="/quizmaster/reset" style="flex:1;">
         <button type="submit" class="btn-danger w-full"
                 onclick="return confirm('Reset and lose all scores?')">Reset</button>
       </form>
@@ -28,7 +28,7 @@
   </div>
 
   <!-- Setup form -->
-  <form th:unless="${activeSession}" method="post" action="/quizSetup/setup"
+  <form th:unless="${activeSession}" method="post" action="/quizmaster/setup"
         class="card p-6" id="setup-form">
     <h2 class="font-semibold" style="font-size:15px;margin-bottom:20px;">New Quiz Night</h2>
 
@@ -56,8 +56,9 @@
   <div th:if="${error}" style="color:var(--red);font-size:13px;text-align:center;margin-top:16px;"
        th:text="${error}"></div>
 
-  <p style="text-align:center;margin-top:20px;font-size:12px;">
-    <a href="/quizSetup/history" style="color:var(--muted);text-decoration:none;">Past quizzes</a>
+  <p style="text-align:center;margin-top:20px;font-size:12px;display:flex;justify-content:center;gap:20px;">
+    <a href="/quizmaster/history" style="color:var(--muted);text-decoration:none;">Past quizzes</a>
+    <a href="/admin" style="color:var(--muted);text-decoration:none;">Users</a>
   </p>
 </div>
 

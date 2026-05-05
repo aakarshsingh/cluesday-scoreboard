@@ -17,7 +17,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Controller
-@RequestMapping("/quizSetup")
+@RequestMapping("/quizmaster")
 public class AdminController {
 
 	private final QuizService quizService;
@@ -40,16 +40,16 @@ public class AdminController {
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate quizDate, RedirectAttributes ra) {
 		if (quizService.hasActiveSession()) {
 			ra.addFlashAttribute("error", "A quiz is already active.");
-			return "redirect:/quizSetup";
+			return "redirect:/quizmaster";
 		}
 		quizService.createSession(sessionNumber, quizmasterName, quizDate);
-		return "redirect:/quizSetup/teams";
+		return "redirect:/quizmaster/teams";
 	}
 
 	@PostMapping("/reset")
 	public String resetSession() {
 		quizService.resetSession();
-		return "redirect:/quizSetup";
+		return "redirect:/quizmaster";
 	}
 
 	// ── Team registration ─────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ public class AdminController {
 	@GetMapping("/teams")
 	public String teamsPage(Model model) {
 		if (!quizService.hasActiveSession()) {
-			return "redirect:/quizSetup";
+			return "redirect:/quizmaster";
 		}
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("quizSession", s));
 		model.addAttribute("teams", quizService.getTeams());
@@ -68,7 +68,7 @@ public class AdminController {
 	@PostMapping("/teams/set-tables")
 	public String setTables(@RequestParam(name = "tables", required = false) List<Integer> tables) {
 		quizService.setStandardTables(tables);
-		return "redirect:/quizSetup/teams";
+		return "redirect:/quizmaster/teams";
 	}
 
 	@PostMapping("/teams/add")
@@ -85,10 +85,10 @@ public class AdminController {
 	public String addTeamDuringQuiz(@RequestParam(required = false) Integer tableNumber,
 			@RequestParam(required = false) String customName) {
 		if (!quizService.hasActiveSession()) {
-			return "redirect:/quizSetup";
+			return "redirect:/quizmaster";
 		}
 		quizService.addTeam(tableNumber, customName);
-		return "redirect:/quizSetup/dashboard";
+		return "redirect:/quizmaster/dashboard";
 	}
 
 	@PostMapping("/teams/rename")
@@ -110,7 +110,7 @@ public class AdminController {
 	@GetMapping("/dashboard")
 	public String dashboard(Model model) {
 		if (!quizService.hasActiveSession()) {
-			return "redirect:/quizSetup";
+			return "redirect:/quizmaster";
 		}
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("quizSession", s));
 		model.addAttribute("teams", quizService.getTeams());
@@ -121,13 +121,13 @@ public class AdminController {
 	@PostMapping("/end")
 	public String endQuiz() {
 		quizService.endQuiz();
-		return "redirect:/quizSetup";
+		return "redirect:/quizmaster";
 	}
 
 	@PostMapping("/discard")
 	public String discardQuiz() {
 		quizService.resetSession();
-		return "redirect:/quizSetup";
+		return "redirect:/quizmaster";
 	}
 
 	// ── Round completion ──────────────────────────────────────────────────────
@@ -175,7 +175,7 @@ public class AdminController {
 		return quizService.findSnapshot(uuid).map(snapshot -> {
 			model.addAttribute("snapshot", snapshot);
 			return "admin/history-detail";
-		}).orElse("redirect:/quizSetup/history");
+		}).orElse("redirect:/quizmaster/history");
 	}
 
 }

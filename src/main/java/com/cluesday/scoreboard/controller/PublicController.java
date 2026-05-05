@@ -30,8 +30,7 @@ public class PublicController {
 
 	@GetMapping("/live/{sessionNumber}")
 	public String scoreboard(@PathVariable int sessionNumber, Model model) {
-		var session = quizService.getActiveSession()
-			.filter(s -> s.sessionNumber() == sessionNumber);
+		var session = quizService.getActiveSession().filter(s -> s.sessionNumber() == sessionNumber);
 
 		if (session.isEmpty()) {
 			model.addAttribute("ended", true);
@@ -51,8 +50,7 @@ public class PublicController {
 		response.setHeader("Cache-Control", "no-cache, no-store");
 		response.setHeader("Connection", "keep-alive");
 
-		var session = quizService.getActiveSession()
-			.filter(s -> s.sessionNumber() == sessionNumber);
+		var session = quizService.getActiveSession().filter(s -> s.sessionNumber() == sessionNumber);
 
 		if (session.isEmpty()) {
 			var dead = new SseEmitter();

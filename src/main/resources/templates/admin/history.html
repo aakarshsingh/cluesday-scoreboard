@@ -9,7 +9,7 @@
       <div class="mono text-xs tracking-widest text-muted uppercase mb-1">Admin</div>
       <h1 class="text-2xl font-bold">Quiz History</h1>
     </div>
-    <a href="/quizSetup" class="btn-ghost" style="padding:6px 12px;font-size:12px;">&#8592; Back</a>
+    <a href="/quizmaster" class="btn-ghost" style="padding:6px 12px;font-size:12px;">&#8592; Back</a>
   </div>
 
   <div th:if="${#lists.isEmpty(history)}"
@@ -19,7 +19,7 @@
 
   <ul th:unless="${#lists.isEmpty(history)}" style="display:flex;flex-direction:column;gap:8px;">
     <li th:each="snap : ${history}">
-      <a th:href="'/quizSetup/history/' + ${snap.sessionUuid()}"
+      <a th:href="'/quizmaster/history/' + ${snap.sessionUuid()}"
          class="card flex items-center justify-between"
          style="padding:16px 20px;text-decoration:none;display:flex;transition:border-color 80ms;"
          onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout/head :: head('Users')}"></head>
+<body style="padding:16px;">
+<div style="width:100%;max-width:480px;margin:40px auto;">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <div class="mono text-xs tracking-widest text-muted uppercase mb-1">Admin</div>
+      <h1 class="text-2xl font-bold">Users</h1>
+    </div>
+    <a href="/quizmaster" class="btn-ghost" style="padding:6px 12px;font-size:12px;">&#8592; Quizmaster</a>
+  </div>
+
+  <div th:if="${success}"
+       style="background:#0f2d18;border:1px solid var(--green);border-radius:6px;
+              padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:16px;"
+       th:text="${success}"></div>
+  <div th:if="${error}"
+       style="background:#1a0808;border:1px solid var(--red);border-radius:6px;
+              padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:16px;"
+       th:text="${error}"></div>
+
+  <!-- Current users -->
+  <section class="card p-5 mb-4">
+    <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-4">Current Users</h2>
+    <ul style="display:flex;flex-direction:column;gap:0;">
+      <li th:each="user : ${users}"
+          style="display:flex;align-items:center;justify-content:space-between;
+                 padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="mono text-sm" th:text="${user.username}">admin</span>
+          <span th:text="${user.role}"
+                th:style="${user.role == 'ADMIN'} ? 'color:var(--amber);' : 'color:var(--muted);'"
+                style="font-size:10px;font-family:DM Mono,monospace;letter-spacing:.08em;"></span>
+        </div>
+        <form th:action="'/admin/users/' + ${user.id} + '/delete'" method="post">
+          <button type="submit" class="btn-danger"
+                  style="padding:4px 10px;font-size:11px;"
+                  th:onclick="'return confirm(\'Delete ' + ${user.username} + '?\')'">Delete</button>
+        </form>
+      </li>
+      <li th:if="${#lists.isEmpty(users)}" class="text-sm text-muted" style="padding:16px 0;">
+        No users found.
+      </li>
+    </ul>
+  </section>
+
+  <!-- Add user -->
+  <section class="card p-5">
+    <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-4">Add User</h2>
+    <form method="post" action="/admin/users" style="margin-top:0;">
+      <div class="mb-4">
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Username</label>
+        <input type="text" name="username" required autocomplete="off"
+               class="field" placeholder="e.g. rrk"/>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Password</label>
+        <input type="password" name="password" required autocomplete="new-password"
+               class="field"/>
+      </div>
+      <div class="mb-5">
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Role</label>
+        <select name="role" class="field">
+          <option value="QM">QM — quiz management only</option>
+          <option value="ADMIN">Admin — full access</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary w-full">Add User</button>
+    </form>
+  </section>
+
+</div>
+</body>
+</html>

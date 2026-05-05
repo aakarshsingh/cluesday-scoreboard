@@ -2,10 +2,15 @@ server:
   port: ${PORT:8080}
 
 spring:
-  security:
-    user:
-      name: ${ADMIN_USER:admin}
-      password: ${ADMIN_PASS:changeme}
+  datasource:
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:cluesday}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
   thymeleaf:
     cache: false
   mvc:

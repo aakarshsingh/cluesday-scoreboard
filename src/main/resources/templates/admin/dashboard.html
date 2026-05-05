@@ -81,12 +81,12 @@
     <h3 class="font-semibold mb-2">End Quiz</h3>
     <p class="text-sm text-muted mb-5">Save scores to history, or discard this session?</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <form method="post" action="/quizSetup/end">
+      <form method="post" action="/quizmaster/end">
         <button type="submit" class="btn-primary w-full" style="font-size:13px;padding:9px;">
           Save &amp; End
         </button>
       </form>
-      <form method="post" action="/quizSetup/discard">
+      <form method="post" action="/quizmaster/discard">
         <button type="submit" class="btn-danger w-full"
                 onclick="return confirm('Discard all scores? This cannot be undone.')">Discard</button>
       </form>
@@ -101,7 +101,7 @@
             align-items:center;justify-content:center;">
   <div class="card p-6" style="max-width:320px;width:90%;">
     <h3 class="font-semibold mb-4">Add Team</h3>
-    <form method="post" action="/quizSetup/teams/add-during-quiz">
+    <form method="post" action="/quizmaster/teams/add-during-quiz">
       <div class="mb-3">
         <label class="block text-xs text-muted" style="margin-bottom:6px;">Table # <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
         <input type="number" name="tableNumber" class="field" placeholder="e.g. 7"/>
@@ -119,7 +119,7 @@
 </div>
 
 <script>
-  const API = '/quizSetup';
+  const API = '/quizmaster';
 
   function post(url, body) {
     return fetch(API + url, {
@@ -327,7 +327,7 @@
 
 <div th:if="${#lists.isEmpty(teams)}"
      style="text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;">
-  No teams yet. <a href="/quizSetup/teams" style="color:var(--amber);">Go to team setup</a>
+  No teams yet. <a href="/quizmaster/teams" style="color:var(--amber);">Go to team setup</a>
 </div>
 
 </body>

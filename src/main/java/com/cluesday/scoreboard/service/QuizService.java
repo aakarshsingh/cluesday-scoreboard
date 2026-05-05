@@ -1,11 +1,16 @@
 package com.cluesday.scoreboard.service;
 
+import com.cluesday.scoreboard.entity.QuizResultEntity;
 import com.cluesday.scoreboard.event.QuizEndedEvent;
 import com.cluesday.scoreboard.event.ScoreChangedEvent;
 import com.cluesday.scoreboard.model.QuizSession;
 import com.cluesday.scoreboard.model.QuizSnapshot;
 import com.cluesday.scoreboard.model.Team;
 import com.cluesday.scoreboard.model.TeamResult;
+import com.cluesday.scoreboard.repository.QuizResultRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -21,13 +26,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @Service
 public class QuizService {
 
 	private final ApplicationEventPublisher events;
+
+	private final QuizResultRepository quizResultRepository;
+
+	private final ObjectMapper objectMapper;
 
 	private volatile QuizSession activeSession;
 
@@ -39,10 +47,11 @@ public class QuizService {
 	// rounds the quizmaster has marked as complete
 	private final Map<Integer, Boolean> completedRounds = new ConcurrentHashMap<>();
 
-	private final List<QuizSnapshot> history = new CopyOnWriteArrayList<>();
-
-	public QuizService(ApplicationEventPublisher events) {
+	public QuizService(ApplicationEventPublisher events, QuizResultRepository quizResultRepository,
+			ObjectMapper objectMapper) {
 		this.events = events;
+		this.quizResultRepository = quizResultRepository;
+		this.objectMapper = objectMapper;
 	}
 
 	// ── Session lifecycle ─────────────────────────────────────────────────────
@@ -67,7 +76,14 @@ public class QuizService {
 		if (activeSession == null) {
 			return;
 		}
-		history.add(buildSnapshot());
+		try {
+			String json = objectMapper.writeValueAsString(computeLeaderboard());
+			quizResultRepository
+				.save(new QuizResultEntity(activeSession.uuid(), activeSession.name(), LocalDateTime.now(), json));
+		}
+		catch (JsonProcessingException e) {
+			throw new RuntimeException("Failed to persist quiz result", e);
+		}
 		clearState();
 		events.publishEvent(new QuizEndedEvent(this));
 	}
@@ -240,15 +256,24 @@ public class QuizService {
 	// ── History ───────────────────────────────────────────────────────────────
 
 	public List<QuizSnapshot> getHistory() {
-		return Collections.unmodifiableList(history);
+		return quizResultRepository.findAllByOrderByCompletedAtDesc().stream().map(this::toSnapshot).toList();
 	}
 
 	public Optional<QuizSnapshot> findSnapshot(String uuid) {
-		return history.stream().filter(s -> s.sessionUuid().equals(uuid)).findFirst();
+		return quizResultRepository.findBySessionUuid(uuid).map(this::toSnapshot);
 	}
 
-	private QuizSnapshot buildSnapshot() {
-		return new QuizSnapshot(activeSession.name(), activeSession.uuid(), LocalDateTime.now(), computeLeaderboard());
+	private QuizSnapshot toSnapshot(QuizResultEntity entity) {
+		try {
+			List<TeamResult> leaderboard = objectMapper.readValue(entity.getLeaderboardJson(), new TypeReference<>() {
+			});
+			return new QuizSnapshot(entity.getSessionName(), entity.getSessionUuid(), entity.getCompletedAt(),
+					leaderboard);
+		}
+		catch (JsonProcessingException e) {
+			return new QuizSnapshot(entity.getSessionName(), entity.getSessionUuid(), entity.getCompletedAt(),
+					List.of());
+		}
 	}
 
 }
