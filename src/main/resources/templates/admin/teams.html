@@ -19,7 +19,8 @@
     <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-4">Playing Tables</h2>
     <form method="post" action="/quizSetup/teams/set-tables">
       <div class="grid-5 mb-4">
-        <th:block th:each="n : ${#numbers.sequence(1, 25)}">
+        <!-- Tables 1–24 -->
+        <th:block th:each="n : ${#numbers.sequence(1, 24)}">
           <label th:for="'t' + ${n}" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;">
             <input type="checkbox" name="tables" th:value="${n}" th:id="'t' + ${n}"
                    th:checked="${activeTables.contains(n)}"
@@ -27,22 +28,31 @@
             <span class="table-btn" th:text="${n}">1</span>
           </label>
         </th:block>
+        <!-- Slot 25 → ∞ (Cluesday lore) -->
+        <label for="t25" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;">
+          <input type="checkbox" name="tables" value="25" id="t25"
+                 th:checked="${activeTables.contains(25)}"
+                 style="position:absolute;opacity:0;width:0;height:0;"/>
+          <span class="table-btn">&#8734;</span>
+        </label>
       </div>
       <button type="submit" class="btn-ghost w-full text-sm">Apply Selection</button>
     </form>
   </section>
 
-  <!-- Add extra table -->
+  <!-- Add extra team -->
   <section class="card p-5 mb-4">
-    <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-3">Add Extra Table</h2>
+    <h2 class="text-xs font-medium uppercase tracking-widest text-muted mb-3">Add Extra Team</h2>
     <form hx-post="/quizSetup/teams/add"
           hx-target="#team-list"
           hx-swap="outerHTML"
           hx-on::after-request="this.reset()"
           class="flex gap-2">
       <input type="number" name="tableNumber" placeholder="Table #"
-             class="field flex-1" style="max-width:140px;text-align:center;"/>
-      <button type="submit" class="btn-primary" style="padding:9px 20px;font-size:13px;">Add</button>
+             class="field" style="max-width:90px;text-align:center;"/>
+      <input type="text" name="customName" placeholder="Name (optional)"
+             class="field flex-1"/>
+      <button type="submit" class="btn-primary" style="padding:9px 16px;font-size:13px;">Add</button>
     </form>
   </section>
 
@@ -60,7 +70,7 @@
 
   <a th:if="${!#lists.isEmpty(teams)}"
      href="/quizSetup/dashboard"
-     class="btn-primary block w-full text-sm" style="padding:12px;font-size:14px;">
+     class="btn-primary block w-full text-sm" style="padding:12px;font-size:14px;text-align:center;">
     Start Quiz &#8594;
   </a>
 

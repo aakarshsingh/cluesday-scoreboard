@@ -41,14 +41,12 @@
 
       <td th:each="r : ${#numbers.sequence(1, quizSession.maxRounds())}"
           th:if="${completedRounds.contains(r)}"
-          th:with="pts=${result.roundTotals().get(r)}, joker=${result.jokerRounds().contains(r)}"
+          th:with="pts=${result.roundTotals().get(r)}"
           style="text-align:center;padding:10px 10px;border-left:1px solid #1e2438;">
-        <th:block th:if="${pts != null and pts != 0.0}">
-          <span th:text="${#numbers.formatDecimal(pts, 1, 1)}"
-                th:style="${joker} ? 'color:#f0a500;font-weight:700;font-family:DM Mono,monospace;' : 'color:#dde1f0;font-family:DM Mono,monospace;'"></span>
-          <span th:if="${joker}" style="color:#f0a500;font-size:11px;">&#9733;</span>
-        </th:block>
-        <span th:unless="${pts != null and pts != 0.0}"
+        <span th:if="${pts != null}"
+              th:text="${#numbers.formatDecimal(pts, 1, 1)}"
+              style="color:#dde1f0;font-family:'DM Mono',monospace;"></span>
+        <span th:unless="${pts != null}"
               style="color:#2a2e40;font-family:'DM Mono',monospace;">&#8212;</span>
       </td>
 

@@ -2,6 +2,7 @@ package com.cluesday.scoreboard.controller;
 
 import com.cluesday.scoreboard.service.QuizService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,11 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequestMapping("/quizSetup")
@@ -39,40 +37,13 @@ public class AdminController {
 
 	@PostMapping("/setup")
 	public String createSession(@RequestParam int sessionNumber, @RequestParam String quizmasterName,
-			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate quizDate,
-			@RequestParam(defaultValue = "6") int maxRounds,
-			@RequestParam(defaultValue = "1.0") double defaultPointsPerQuestion,
-			@RequestParam(value = "q", required = false) List<Integer> roundQuestions,
-			@RequestParam(value = "rt", required = false) List<String> roundTypeList, HttpServletRequest request,
-			RedirectAttributes ra) {
-
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate quizDate, RedirectAttributes ra) {
 		if (quizService.hasActiveSession()) {
 			ra.addFlashAttribute("error", "A quiz is already active.");
 			return "redirect:/quizSetup";
 		}
-		Map<String, Double> maxOverrides  = parseParams(request, "qpt_");
-		Map<String, Double> minOverrides  = parseParams(request, "qptmin_");
-		Map<String, Double> bonusOverrides = parseParams(request, "bonus_");
-		quizService.createSession(sessionNumber, quizmasterName, quizDate, maxRounds, defaultPointsPerQuestion,
-				roundQuestions, roundTypeList, maxOverrides, minOverrides, bonusOverrides);
+		quizService.createSession(sessionNumber, quizmasterName, quizDate);
 		return "redirect:/quizSetup/teams";
-	}
-
-	private static Map<String, Double> parseParams(HttpServletRequest request, String prefix) {
-		Map<String, Double> result = new HashMap<>();
-		var names = request.getParameterNames();
-		while (names.hasMoreElements()) {
-			String name = names.nextElement();
-			if (name.startsWith(prefix)) {
-				String key = name.substring(prefix.length()).replace('_', ':');
-				try {
-					result.put(key, Double.parseDouble(request.getParameter(name)));
-				}
-				catch (NumberFormatException ignored) {
-				}
-			}
-		}
-		return result;
 	}
 
 	@PostMapping("/reset")
@@ -101,12 +72,37 @@ public class AdminController {
 	}
 
 	@PostMapping("/teams/add")
-	public String addTeam(@RequestParam(required = false) Integer tableNumber, Model model) {
-		quizService.addTeam(tableNumber);
+	public String addTeam(@RequestParam(required = false) Integer tableNumber,
+			@RequestParam(required = false) String customName, Model model) {
+		quizService.addTeam(tableNumber, customName);
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("quizSession", s));
 		model.addAttribute("teams", quizService.getTeams());
 		model.addAttribute("activeTables", quizService.getActiveStandardTables());
 		return "admin/teams :: #team-list";
+	}
+
+	@PostMapping("/teams/add-during-quiz")
+	public String addTeamDuringQuiz(@RequestParam(required = false) Integer tableNumber,
+			@RequestParam(required = false) String customName) {
+		if (!quizService.hasActiveSession()) {
+			return "redirect:/quizSetup";
+		}
+		quizService.addTeam(tableNumber, customName);
+		return "redirect:/quizSetup/dashboard";
+	}
+
+	@PostMapping("/teams/rename")
+	@ResponseBody
+	public String renameTeam(@RequestParam String teamId, @RequestParam String newName) {
+		quizService.renameTeam(teamId, newName);
+		return "ok";
+	}
+
+	@PostMapping("/teams/delete")
+	@ResponseBody
+	public String deleteTeam(@RequestParam String teamId) {
+		quizService.deleteTeam(teamId);
+		return "ok";
 	}
 
 	// ── Dashboard ─────────────────────────────────────────────────────────────
@@ -134,22 +130,6 @@ public class AdminController {
 		return "redirect:/quizSetup";
 	}
 
-	// ── Round question management ─────────────────────────────────────────────
-
-	@PostMapping("/round/{roundNum}/add-question")
-	@ResponseBody
-	public String addQuestion(@PathVariable int roundNum) {
-		int count = quizService.addQuestionToRound(roundNum);
-		return String.valueOf(count);
-	}
-
-	@PostMapping("/round/{roundNum}/remove-question")
-	@ResponseBody
-	public String removeQuestion(@PathVariable int roundNum) {
-		quizService.removeQuestionFromRound(roundNum);
-		return String.valueOf(quizService.getQuestionsForRound(roundNum));
-	}
-
 	// ── Round completion ──────────────────────────────────────────────────────
 
 	@PostMapping("/round/{roundNum}/complete")
@@ -161,41 +141,25 @@ public class AdminController {
 
 	// ── Scoring ───────────────────────────────────────────────────────────────
 
-	@PostMapping("/score")
+	@PostMapping("/round-score")
 	@ResponseBody
-	public String setScore(@RequestParam String teamId, @RequestParam int roundNum, @RequestParam int questionNum,
-			@RequestParam double points) {
-		quizService.setScore(teamId, roundNum, questionNum, points);
-		return "ok";
-	}
-
-	@PostMapping("/round-total")
-	@ResponseBody
-	public String setRoundTotal(@RequestParam String teamId, @RequestParam int roundNum, @RequestParam double total) {
-		quizService.setRoundTotal(teamId, roundNum, total);
-		return "ok";
-	}
-
-	@PostMapping("/round-total/clear")
-	@ResponseBody
-	public String clearRoundTotal(@RequestParam String teamId, @RequestParam int roundNum) {
-		quizService.clearRoundTotal(teamId, roundNum);
-		return "ok";
-	}
-
-	@PostMapping("/joker")
-	@ResponseBody
-	public String setJoker(@RequestParam String teamId, @RequestParam int roundNum, @RequestParam int questionNum) {
-		quizService.setJoker(teamId, roundNum, questionNum);
-		return "ok";
-	}
-
-	@PostMapping("/bonus")
-	@ResponseBody
-	public String setBonus(@RequestParam String teamId, @RequestParam int roundNum,
-			@RequestParam boolean awarded) {
-		quizService.setBonusAward(teamId, roundNum, awarded);
-		return "ok";
+	public ResponseEntity<String> setRoundScore(@RequestParam String teamId, @RequestParam int roundNum,
+			@RequestParam(required = false) String score) {
+		if (score == null || score.isBlank()) {
+			quizService.setRoundScore(teamId, roundNum, null);
+			return ResponseEntity.ok("ok");
+		}
+		try {
+			double val = Double.parseDouble(score.trim());
+			if (Double.isNaN(val) || Double.isInfinite(val)) {
+				return ResponseEntity.badRequest().body("invalid");
+			}
+			quizService.setRoundScore(teamId, roundNum, val);
+			return ResponseEntity.ok("ok");
+		}
+		catch (NumberFormatException e) {
+			return ResponseEntity.badRequest().body("invalid");
+		}
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────

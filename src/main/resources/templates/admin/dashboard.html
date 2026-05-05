@@ -1,7 +1,77 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout/head :: head('Dashboard')}"></head>
-<body style="padding:10px;padding-bottom:40px;">
+<body style="padding:10px;padding-bottom:48px;">
+
+<style>
+  /* ── Scoring table ────────────────────────────────── */
+  .dash-table { width:100%; border-collapse:collapse; }
+  .dash-table th, .dash-table td {
+    padding:7px 6px;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  .dash-table thead tr { border-bottom:2px solid var(--border); }
+
+  /* Sticky columns */
+  .col-team {
+    position:sticky; left:0; z-index:2;
+    background:var(--bg);
+    min-width:90px; max-width:130px;
+    text-align:left;
+    border-right:1px solid var(--border);
+  }
+  .col-total {
+    position:sticky; right:0; z-index:2;
+    background:var(--bg);
+    min-width:58px;
+    text-align:center;
+    border-left:1px solid var(--border);
+  }
+  /* header sticky needs higher z so body sticky cells don't bleed through */
+  thead .col-team, thead .col-total { z-index:3; background:var(--bg); }
+
+  /* Score input */
+  .score-input {
+    width:58px;
+    text-align:center;
+    background:var(--surf2);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:5px 4px;
+    font-size:13px;
+    font-family:'DM Mono',monospace;
+    color:var(--text);
+    transition:border-color 120ms;
+  }
+  .score-input:focus { outline:none; border-color:var(--blue); }
+  .score-input.invalid { border-color:var(--red); color:var(--red); }
+  .score-input.saved { border-color:var(--green); }
+
+  /* Round complete checkbox */
+  .done-cb { accent-color:var(--green); width:14px; height:14px; cursor:pointer; margin-top:4px; }
+
+  /* Edit controls */
+  .edit-btn {
+    background:none; border:none; color:var(--muted);
+    cursor:pointer; font-size:13px; padding:1px 4px;
+    border-radius:3px; line-height:1;
+  }
+  .edit-btn:hover { color:var(--amber); }
+  .edit-row { display:none; align-items:center; gap:3px; margin-top:3px; }
+  .edit-row.open { display:flex; }
+  .edit-name-inp {
+    flex:1; min-width:55px; max-width:90px;
+    background:var(--surf2); border:1px solid var(--amber);
+    border-radius:4px; padding:3px 5px;
+    font-size:12px; color:var(--text); font-family:'Sora',sans-serif;
+  }
+  .edit-name-inp:focus { outline:none; }
+  .ic-btn { background:none; border:none; cursor:pointer; font-size:13px; padding:1px 3px; }
+  .ic-save { color:var(--green); }
+  .ic-del  { color:var(--red); }
+  .ic-x    { color:var(--muted); }
+</style>
 
 <!-- End Quiz modal -->
 <div id="end-modal"
@@ -18,13 +88,33 @@
       </form>
       <form method="post" action="/quizSetup/discard">
         <button type="submit" class="btn-danger w-full"
-                onclick="return confirm('Discard all scores? This cannot be undone.')">
-          Discard
-        </button>
+                onclick="return confirm('Discard all scores? This cannot be undone.')">Discard</button>
       </form>
-      <button onclick="document.getElementById('end-modal').style.display='none'"
-              class="btn-ghost w-full text-sm" style="font-size:13px;">Cancel</button>
+      <button onclick="closeModal('end-modal')" class="btn-ghost w-full text-sm">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Add Team modal -->
+<div id="add-team-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
+            align-items:center;justify-content:center;">
+  <div class="card p-6" style="max-width:320px;width:90%;">
+    <h3 class="font-semibold mb-4">Add Team</h3>
+    <form method="post" action="/quizSetup/teams/add-during-quiz">
+      <div class="mb-3">
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Table # <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="number" name="tableNumber" class="field" placeholder="e.g. 7"/>
+      </div>
+      <div class="mb-5">
+        <label class="block text-xs text-muted" style="margin-bottom:6px;">Name <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+        <input type="text" name="customName" class="field" placeholder="e.g. Late Table"/>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn-primary flex-1">Add</button>
+        <button type="button" onclick="closeModal('add-team-modal')" class="btn-ghost flex-1">Cancel</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -33,121 +123,122 @@
 
   function post(url, body) {
     return fetch(API + url, {
-      method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body
     });
   }
 
-  function setScore(teamId, roundNum, questionNum, points) {
-    post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&questionNum='+questionNum+'&points='+points);
-    const cell = document.getElementById('cell-'+teamId+'-'+roundNum+'-'+questionNum);
-    if (!cell) return;
-    cell.querySelectorAll('[data-pts]').forEach(b => {
-      b.dataset.active = (Math.abs(parseFloat(b.dataset.pts)-parseFloat(points))<0.001)?'true':'false';
-    });
-    const cb = cell.querySelector('input[type=checkbox]');
-    if (cb) cb.checked = Math.abs(parseFloat(points)-parseFloat(cell.dataset.defPts))<0.001;
-    cell.dataset.scored = 'true';
-    const fi = cell.querySelector('.inline-score');
-    if (fi && parseFloat(fi.value)!==parseFloat(points)) fi.value = (points==0)?'':points;
-    const tot = document.getElementById('tot-'+teamId+'-'+roundNum);
-    if (tot) tot.value='';
-  }
+  function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-  function onCheckbox(cb) {
-    setScore(cb.dataset.teamId, cb.dataset.r, cb.dataset.q, cb.checked ? parseFloat(cb.dataset.dp) : 0);
-  }
-
-  function scoreAllQ(teamId, r, maxPts) {
-    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell => {
-      const q = cell.id.split('-').pop();
-      const dp = parseFloat(cell.dataset.defPts) || maxPts;
-      setScore(teamId, r, q, dp);
-    });
-  }
-  function clearAllQ(teamId, r) {
-    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell => {
-      setScore(teamId, r, cell.id.split('-').pop(), 0);
-    });
-  }
-
-  function setJoker(sel, teamId, roundNum) {
-    post('/joker','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&questionNum='+sel.value);
-  }
-
-  function setBonus(cb) {
-    post('/bonus','teamId='+encodeURIComponent(cb.dataset.teamId)+'&roundNum='+cb.dataset.r+'&awarded='+cb.checked);
+  // Validate: +/- prefix, integer or decimal
+  function isValidScore(s) {
+    if (s === '' || s === null) return true;
+    return /^[+-]?(\d+\.?\d*|\.\d+)$/.test(s.trim());
   }
 
   const _dbt = {};
-  function debounce(key, fn, ms=350) { clearTimeout(_dbt[key]); _dbt[key]=setTimeout(fn,ms); }
+  function debounce(key, fn, ms) { clearTimeout(_dbt[key]); _dbt[key] = setTimeout(fn, ms || 700); }
 
-  function setInlineScore(input) {
-    const {teamId, r, q} = input.dataset;
-    if (!input.value) return;
-    const pts = parseFloat(input.value);
-    if (isNaN(pts)) return;
-    debounce('is-'+teamId+'-'+r+'-'+q, () => {
-      post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+r+'&questionNum='+q+'&points='+pts);
-      const cell = document.getElementById('cell-'+teamId+'-'+r+'-'+q);
-      if (!cell) return;
-      cell.querySelectorAll('[data-pts]').forEach(b => b.dataset.active='false');
-      const cb = cell.querySelector('input[type=checkbox]'); if (cb) cb.checked=false;
+  function onScoreInput(inp) {
+    const v = inp.value.trim();
+    if (v === '' || isValidScore(v)) {
+      inp.classList.remove('invalid');
+    } else {
+      inp.classList.add('invalid');
+      inp.classList.remove('saved');
+      return;
+    }
+    const {teamId, r} = inp.dataset;
+    debounce('sc-' + teamId + '-' + r, () => submitScore(inp));
+  }
+
+  function submitScore(inp) {
+    const v = inp.value.trim();
+    if (!isValidScore(v)) return;
+    const {teamId, r} = inp.dataset;
+    const body = 'teamId=' + encodeURIComponent(teamId) + '&roundNum=' + r + '&score=' + encodeURIComponent(v);
+    post('/round-score', body).then(res => {
+      if (res.ok) {
+        inp.classList.remove('invalid');
+        inp.classList.add('saved');
+        setTimeout(() => inp.classList.remove('saved'), 1200);
+        recalcTotal(teamId);
+      } else {
+        inp.classList.add('invalid');
+      }
     });
   }
 
-  function setFreeScore(input) {
-    const {teamId, r, q} = input.dataset;
-    const pts = parseFloat(input.value); if (isNaN(pts)) return;
-    debounce('fs-'+teamId+'-'+r+'-'+q, () => {
-      post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+r+'&questionNum='+q+'&points='+pts);
+  function recalcTotal(teamId) {
+    let sum = 0;
+    document.querySelectorAll('.score-input[data-team-id="' + teamId + '"]').forEach(inp => {
+      const v = parseFloat(inp.value);
+      if (!isNaN(v)) sum += v;
     });
-  }
-
-  function setTotalDirect(input, teamId, roundNum) {
-    debounce('tot-'+teamId+'-'+roundNum, () => {
-      if (!input.value) { post('/round-total/clear','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum); return; }
-      const total = parseFloat(input.value); if (isNaN(total)) return;
-      post('/round-total','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&total='+total);
-      document.querySelectorAll('[id^="cell-'+teamId+'-'+roundNum+'-"]').forEach(c => {
-        c.querySelectorAll('[data-pts]').forEach(b=>b.dataset.active='false');
-        const cb=c.querySelector('input[type=checkbox]'); if (cb) cb.checked=false;
-      });
-    });
+    const el = document.getElementById('tot-' + teamId);
+    if (el) el.textContent = (sum % 1 === 0) ? String(sum) : sum.toFixed(1);
   }
 
   function markRoundComplete(cb) {
-    post('/round/'+cb.dataset.r+'/complete','complete='+cb.checked);
+    post('/round/' + cb.dataset.r + '/complete', 'complete=' + cb.checked);
   }
-
-  function addQuestion(r) { post('/round/'+r+'/add-question','').then(()=>location.reload()); }
-  function removeQuestion(r) { post('/round/'+r+'/remove-question','').then(()=>location.reload()); }
 
   function copyUrl() {
     const val = document.getElementById('pub-url').value;
-    navigator.clipboard.writeText(window.location.origin+val);
+    navigator.clipboard.writeText(window.location.origin + val);
     const btn = document.getElementById('copy-btn');
-    const orig = btn.textContent; btn.textContent='Copied';
-    setTimeout(()=>btn.textContent=orig, 1800);
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = orig, 1800);
   }
 
-  function showRound(n) {
-    document.querySelectorAll('[data-panel]').forEach(p=>p.style.display='none');
-    document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
-    const panel=document.querySelector('[data-panel="'+n+'"]');
-    const tab=document.querySelector('.rtab[data-tab="'+n+'"]');
-    if (panel) panel.style.display='';
-    if (tab) tab.classList.add('active');
-    history.replaceState(null,'','#round-'+n);
+  // ── Inline team editing ────────────────────────────────────────────────────
+
+  function toggleEdit(btn) {
+    const cell = btn.closest('.col-team');
+    const nameEl = cell.querySelector('.tname');
+    const editRow = cell.querySelector('.edit-row');
+    if (editRow.classList.contains('open')) {
+      cancelEdit(cell);
+    } else {
+      nameEl.style.visibility = 'hidden';
+      btn.style.visibility = 'hidden';
+      editRow.classList.add('open');
+      editRow.querySelector('.edit-name-inp').select();
+    }
   }
 
-  document.addEventListener('DOMContentLoaded',()=>{
-    const hash=window.location.hash.replace('#round-','');
-    showRound(hash&&!isNaN(parseInt(hash))?parseInt(hash):1);
-  });
+  function cancelEdit(cellOrChild) {
+    const cell = cellOrChild.closest ? cellOrChild.closest('.col-team') : cellOrChild;
+    cell.querySelector('.tname').style.visibility = '';
+    cell.querySelector('.edit-btn').style.visibility = '';
+    cell.querySelector('.edit-row').classList.remove('open');
+  }
+
+  function saveRename(btn) {
+    const cell = btn.closest('.col-team');
+    const teamId = cell.dataset.teamId;
+    const newName = cell.querySelector('.edit-name-inp').value.trim();
+    if (!newName) { cancelEdit(cell); return; }
+    post('/teams/rename', 'teamId=' + encodeURIComponent(teamId) + '&newName=' + encodeURIComponent(newName))
+      .then(() => location.reload());
+  }
+
+  function deleteTeam(btn) {
+    const cell = btn.closest('.col-team');
+    const teamId = cell.dataset.teamId;
+    const name = cell.querySelector('.tname').textContent.trim();
+    if (!confirm('Delete "' + name + '" and all their scores?')) return;
+    post('/teams/delete', 'teamId=' + encodeURIComponent(teamId))
+      .then(() => location.reload());
+  }
 </script>
 
-<!-- Header -->
-<div class="card" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;">
+<!-- Header bar -->
+<div class="card" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+                         padding:10px 14px;margin-bottom:10px;">
   <div>
     <div class="mono text-xs text-muted">LIVE</div>
     <h1 class="font-semibold" style="font-size:15px;line-height:1.2;" th:text="${quizSession.name()}">Cluesday</h1>
@@ -162,204 +253,82 @@
     <button id="copy-btn" onclick="copyUrl()" class="btn-ghost"
             style="padding:4px 10px;font-size:11px;white-space:nowrap;">Copy</button>
   </div>
-  <button onclick="document.getElementById('end-modal').style.display='flex'"
-          class="btn-danger" style="padding:5px 11px;font-size:11px;flex-shrink:0;">End Quiz</button>
-</div>
-
-<!-- Round tabs -->
-<div style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;">
-  <th:block th:each="r : ${#numbers.sequence(1, quizSession.maxRounds())}">
-    <button class="rtab" th:attr="data-tab=${r}"
-            onclick="showRound(this.getAttribute('data-tab'))"
-            th:text="'R' + ${r}">R1</button>
-  </th:block>
-</div>
-
-<!-- Round panels -->
-<th:block th:each="r : ${#numbers.sequence(1, quizSession.maxRounds())}">
-  <div th:attr="data-panel=${r}" style="display:none;padding-top:10px;">
-    <th:block th:with="rt=${quizService.getRoundType(r).name()},
-                        hasBonus=${quizService.getRoundBonusAmount(r) > 0},
-                        bonusAmt=${quizService.getRoundBonusAmount(r)}">
-
-      <!-- Round controls -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);">
-          <input type="checkbox" class="check-green"
-                 th:checked="${quizService.isRoundComplete(r)}"
-                 th:data-r="${r}" onchange="markRoundComplete(this)"/>
-          Mark complete
-        </label>
-        <div style="display:flex;gap:5px;align-items:center;">
-          <button type="button" th:onclick="'removeQuestion('+${r}+')'"
-                  class="row-btn" style="padding:2px 8px;">&#8722; Q</button>
-          <button type="button" th:onclick="'addQuestion('+${r}+')'"
-                  class="row-btn" style="padding:2px 8px;">+ Q</button>
-          <span class="mono text-xs text-muted"
-                th:text="${quizService.getQuestionsForRound(r)} + ' Q'"></span>
-        </div>
-      </div>
-
-      <!-- Scoring grid -->
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-        <table class="score-table" style="min-width:max-content;">
-          <thead>
-            <tr>
-              <th class="left sticky-col" style="min-width:64px;padding:6px 8px;">T#</th>
-              <th th:each="q : ${#numbers.sequence(1, quizService.getQuestionsForRound(r))}"
-                  th:with="mx=${quizService.getQuestionMaxPoints(r, q)}"
-                  class="q-cell">
-                <span th:text="'Q' + ${q}" style="font-size:11px;display:block;"></span>
-                <span class="mono" style="font-size:9px;color:#3a4060;"
-                      th:text="${rt == 'DYNAMIC'} ? (${#numbers.formatDecimal(quizService.getQuestionMinPoints(r,q),1,1)}+'/'+${#numbers.formatDecimal(mx,1,1)}) : ${#numbers.formatDecimal(mx,1,1)}"></span>
-              </th>
-              <!-- Joker: rounds 1–4 only -->
-              <th th:if="${r <= 4}" style="min-width:76px;white-space:nowrap;font-size:11px;">Joker Q</th>
-              <!-- Bonus: only if configured for this round -->
-              <th th:if="${hasBonus}"
-                  style="min-width:64px;white-space:nowrap;font-size:11px;"
-                  th:text="'Bonus +' + ${#numbers.formatDecimal(bonusAmt,1,1)}">Bonus</th>
-              <th style="min-width:68px;font-size:11px;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr th:each="team : ${teams}">
-
-              <!-- Team label + ✓/✗ quick-score -->
-              <td class="left sticky-col" style="padding:5px 8px;">
-                <span class="mono font-medium text-amber" style="font-size:13px;display:block;"
-                      th:text="${team.displayName()}">T1</span>
-                <div style="display:flex;gap:3px;margin-top:3px;">
-                  <button type="button" class="row-btn ok"
-                          th:data-team-id="${team.id()}" th:data-r="${r}"
-                          th:data-dp="${quizSession.defaultPointsPerQuestion()}"
-                          onclick="scoreAllQ(this.dataset.teamId,this.dataset.r,parseFloat(this.dataset.dp))">&#10003;</button>
-                  <button type="button" class="row-btn clr"
-                          th:data-team-id="${team.id()}" th:data-r="${r}"
-                          onclick="clearAllQ(this.dataset.teamId,this.dataset.r)">&#10007;</button>
-                </div>
-              </td>
-
-              <!-- Question cells -->
-              <th:block th:each="q : ${#numbers.sequence(1, quizService.getQuestionsForRound(r))}">
-                <th:block th:with="cs=${quizService.getScore(team.id(), r, q)},
-                                    dp2=${quizService.getQuestionMaxPoints(r, q)},
-                                    hs=${quizService.hasScore(team.id(), r, q)}">
-
-                  <!-- NORMAL -->
-                  <td th:if="${rt == 'NORMAL'}"
-                      th:id="${'cell-' + team.id() + '-' + r + '-' + q}"
-                      th:attr="data-def-pts=${dp2}" th:data-scored="${hs}"
-                      class="q-cell">
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                      <input type="checkbox" class="qcheck"
-                             th:checked="${hs and cs == dp2}"
-                             th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}" th:data-dp="${dp2}"
-                             onchange="onCheckbox(this)"/>
-                      <div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center;">
-                        <button type="button" class="sbtn" data-pts="0.5"
-                                th:attr="data-active=${hs and cs == 0.5} ? 'true' : 'false'"
-                                th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                                onclick="setScore(this.dataset.teamId,this.dataset.r,this.dataset.q,0.5)">0.5</button>
-                        <button type="button" class="sbtn" data-pts="1"
-                                th:attr="data-active=${hs and cs == 1.0} ? 'true' : 'false'"
-                                th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                                onclick="setScore(this.dataset.teamId,this.dataset.r,this.dataset.q,1)">1</button>
-                        <input type="number" step="any" class="inline-score"
-                               th:value="${hs and cs != 0 and cs != 0.5 and cs != 1.0} ? ${cs} : ''"
-                               placeholder="?"
-                               th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                               oninput="setInlineScore(this)"/>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- NEGATIVE -->
-                  <td th:if="${rt == 'NEGATIVE'}"
-                      th:id="${'cell-' + team.id() + '-' + r + '-' + q}"
-                      th:data-scored="${hs}" class="q-cell">
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                      <div style="display:flex;gap:2px;">
-                        <button type="button" class="sbtn sbtn-neg" data-pts="-1"
-                                th:attr="data-active=${hs and cs == -1.0} ? 'true' : 'false'"
-                                th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                                onclick="setScore(this.dataset.teamId,this.dataset.r,this.dataset.q,-1)">&#8722;1</button>
-                        <button type="button" class="sbtn" data-pts="0"
-                                th:attr="data-active=${hs and cs == 0.0} ? 'true' : 'false'"
-                                th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                                onclick="setScore(this.dataset.teamId,this.dataset.r,this.dataset.q,0)">0</button>
-                        <button type="button" class="sbtn sbtn-pos" data-pts="1"
-                                th:attr="data-active=${hs and cs == 1.0} ? 'true' : 'false'"
-                                th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                                onclick="setScore(this.dataset.teamId,this.dataset.r,this.dataset.q,1)">+1</button>
-                      </div>
-                      <input type="number" step="any" class="inline-score"
-                             th:value="${hs and cs != 0 and cs != -1.0 and cs != 1.0} ? ${cs} : ''"
-                             placeholder="?"
-                             th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                             oninput="setInlineScore(this)"/>
-                    </div>
-                  </td>
-
-                  <!-- DYNAMIC -->
-                  <td th:if="${rt == 'DYNAMIC'}"
-                      th:id="${'cell-' + team.id() + '-' + r + '-' + q}"
-                      th:data-scored="${hs}" class="q-cell">
-                    <input type="number" step="any" class="fscore"
-                           th:placeholder="${#numbers.formatDecimal(dp2,1,1)}"
-                           th:value="${hs} ? ${#numbers.formatDecimal(cs,1,2)} : ''"
-                           th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                           oninput="setFreeScore(this)" style="width:60px;"/>
-                  </td>
-
-                </th:block>
-              </th:block>
-
-              <!-- Joker dropdown: rounds 1–4 only -->
-              <td th:if="${r <= 4}" style="text-align:center;">
-                <select th:if="${quizService.getQuestionsForRound(r) > 0}"
-                        class="joker-sel"
-                        th:data-team-id="${team.id()}" th:data-r="${r}"
-                        onchange="setJoker(this,this.dataset.teamId,this.dataset.r)">
-                  <option value="0" th:selected="${quizService.getJokerQuestion(team.id(), r) == 0}">&#8212;</option>
-                  <th:block th:each="q : ${#numbers.sequence(1, quizService.getQuestionsForRound(r))}">
-                    <option th:value="${q}" th:text="'Q' + ${q}"
-                            th:selected="${quizService.getJokerQuestion(team.id(), r) == q}">Q1</option>
-                  </th:block>
-                </select>
-              </td>
-
-              <!-- Bonus checkbox: only if round has a bonus configured -->
-              <td th:if="${hasBonus}" style="text-align:center;">
-                <input type="checkbox" class="check-green"
-                       th:checked="${quizService.hasBonusAward(team.id(), r)}"
-                       th:data-team-id="${team.id()}" th:data-r="${r}"
-                       onchange="setBonus(this)"
-                       style="width:16px;height:16px;cursor:pointer;"/>
-              </td>
-
-              <!-- Direct total override -->
-              <td style="text-align:center;">
-                <th:block th:with="ov=${quizService.getRoundTotalOverride(team.id(), r)}">
-                  <input type="number" step="any" class="fscore"
-                         th:id="${'tot-' + team.id() + '-' + r}"
-                         th:value="${ov != null} ? ${#numbers.formatDecimal(ov,1,2)} : ''"
-                         placeholder="—"
-                         th:data-team-id="${team.id()}" th:data-r="${r}"
-                         oninput="setTotalDirect(this,this.dataset.teamId,this.dataset.r)"
-                         th:style="${ov != null} ? 'border-color:var(--amber);color:var(--amber);' : ''"
-                         style="width:56px;"/>
-                </th:block>
-              </td>
-
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-    </th:block>
+  <div style="display:flex;gap:6px;flex-shrink:0;">
+    <button onclick="openModal('add-team-modal')"
+            class="btn-ghost" style="padding:5px 10px;font-size:11px;">+ Team</button>
+    <button onclick="openModal('end-modal')"
+            class="btn-danger" style="padding:5px 10px;font-size:11px;">End Quiz</button>
   </div>
-</th:block>
+</div>
+
+<!-- Scoring table -->
+<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+  <table class="dash-table">
+    <thead>
+      <tr>
+        <th class="col-team" style="font-size:11px;font-weight:500;color:var(--muted);">Team</th>
+        <th th:each="r : ${#numbers.sequence(1, 6)}"
+            style="text-align:center;font-size:11px;font-weight:500;color:var(--muted);min-width:74px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+            <span class="mono" th:text="'R' + ${r}">R1</span>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+              <input type="checkbox" class="done-cb"
+                     th:checked="${quizService.isRoundComplete(r)}"
+                     th:data-r="${r}"
+                     onchange="markRoundComplete(this)"/>
+              <span style="font-size:10px;color:var(--muted);">done</span>
+            </label>
+          </div>
+        </th>
+        <th class="col-total" style="font-size:11px;font-weight:600;color:var(--text);">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="team : ${teams}">
+
+        <!-- Team name cell — sticky left, edit controls -->
+        <td class="col-team" th:data-team-id="${team.id()}" style="padding:8px 10px;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span class="mono font-medium text-amber tname" style="font-size:13px;"
+                  th:text="${team.displayName()}">T1</span>
+            <button class="edit-btn" onclick="toggleEdit(this)" title="Rename / delete">&#9998;</button>
+          </div>
+          <div class="edit-row">
+            <input type="text" class="edit-name-inp" th:value="${team.displayName()}"
+                   onkeydown="if(event.key==='Enter')saveRename(this);
+                              if(event.key==='Escape')cancelEdit(this);"/>
+            <button class="ic-btn ic-save" onclick="saveRename(this)" title="Save">&#10003;</button>
+            <button class="ic-btn ic-del"  onclick="deleteTeam(this)"  title="Delete">&#128465;</button>
+            <button class="ic-btn ic-x"   onclick="cancelEdit(this)"  title="Cancel">&#10007;</button>
+          </div>
+        </td>
+
+        <!-- Round score cells -->
+        <td th:each="r : ${#numbers.sequence(1, 6)}" style="text-align:center;padding:6px 4px;">
+          <input type="text" class="score-input"
+                 th:data-team-id="${team.id()}" th:data-r="${r}"
+                 th:value="${quizService.formatRoundScore(team.id(), r)}"
+                 placeholder="&#8212;"
+                 oninput="onScoreInput(this)"
+                 onkeydown="if(event.key==='Enter'){this.blur();submitScore(this);}"/>
+        </td>
+
+        <!-- Total — sticky right -->
+        <td class="col-total" style="padding:8px 6px;">
+          <span class="mono font-semibold" style="font-size:14px;"
+                th:id="${'tot-' + team.id()}"
+                th:text="${quizService.formatTeamTotal(team.id())}">0</span>
+        </td>
+
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div th:if="${#lists.isEmpty(teams)}"
+     style="text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;">
+  No teams yet. <a href="/quizSetup/teams" style="color:var(--amber);">Go to team setup</a>
+</div>
 
 </body>
 </html>

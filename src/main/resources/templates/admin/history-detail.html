@@ -36,19 +36,17 @@
                 th:style="${iter.index == 0} ? 'color:var(--amber);' : 'color:#7a9fff;'"
                 th:text="${result.displayName()}">T1</td>
             <td th:each="r : ${#numbers.sequence(1, maxRound)}"
-                th:with="pts=${result.roundTotals().get(r)}, joker=${result.jokerRounds().contains(r)}"
+                th:with="pts=${result.roundTotals().get(r)}"
                 style="text-align:center;border-left:1px solid var(--border);">
-              <th:block th:if="${pts != null and pts != 0.0}">
-                <span th:text="#numbers.formatDecimal(pts, 1, 1)"
-                      th:style="${joker} ? 'color:var(--amber);font-weight:600;font-family:DM Mono,monospace;' : 'font-family:DM Mono,monospace;'"></span>
-                <span th:if="${joker}" style="color:var(--amber);font-family:'DM Mono',monospace;">&#9733;</span>
-              </th:block>
-              <span th:unless="${pts != null and pts != 0.0}"
+              <span th:if="${pts != null}"
+                    th:text="${#numbers.formatDecimal(pts, 1, 1)}"
+                    style="font-family:'DM Mono',monospace;"></span>
+              <span th:unless="${pts != null}"
                     style="color:var(--border);font-family:'DM Mono',monospace;">&#8212;</span>
             </td>
             <td class="mono font-bold" style="text-align:right;border-left:1px solid var(--border);font-size:15px;"
                 th:style="${iter.index == 0} ? 'color:var(--amber);' : ''"
-                th:text="#numbers.formatDecimal(result.grandTotal(), 1, 1)"></td>
+                th:text="${#numbers.formatDecimal(result.grandTotal(), 1, 1)}"></td>
           </tr>
         </tbody>
       </table>

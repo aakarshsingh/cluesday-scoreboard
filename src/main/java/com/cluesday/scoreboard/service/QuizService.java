@@ -4,7 +4,6 @@ import com.cluesday.scoreboard.event.QuizEndedEvent;
 import com.cluesday.scoreboard.event.ScoreChangedEvent;
 import com.cluesday.scoreboard.model.QuizSession;
 import com.cluesday.scoreboard.model.QuizSnapshot;
-import com.cluesday.scoreboard.model.RoundType;
 import com.cluesday.scoreboard.model.Team;
 import com.cluesday.scoreboard.model.TeamResult;
 import org.springframework.context.ApplicationEventPublisher;
@@ -14,11 +13,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -29,43 +27,17 @@ import java.util.stream.Collectors;
 @Service
 public class QuizService {
 
-	private static final int DEFAULT_QUESTIONS = 5;
-
 	private final ApplicationEventPublisher events;
 
 	private volatile QuizSession activeSession;
 
 	private final Map<String, Team> teams = new ConcurrentHashMap<>();
 
-	// "teamId:roundNum:questionNum" → points
-	private final Map<String, Double> scores = new ConcurrentHashMap<>();
-
-	// "teamId:roundNum" → direct total override (bypasses per-Q scoring)
-	private final Map<String, Double> roundTotalOverrides = new ConcurrentHashMap<>();
-
-	// "teamId:roundNum" → questionNum with joker (0 = no joker)
-	private final Map<String, Integer> jokers = new ConcurrentHashMap<>();
-
-	// "roundNum:questionNum" → configured max points
-	private final Map<String, Double> questionMaxPoints = new ConcurrentHashMap<>();
-
-	// "roundNum:questionNum" → configured min points (for DYNAMIC rounds)
-	private final Map<String, Double> questionMinPoints = new ConcurrentHashMap<>();
-
-	// roundNum → question count
-	private final Map<Integer, Integer> questionsPerRound = new ConcurrentHashMap<>();
-
-	// roundNum → round type
-	private final Map<Integer, RoundType> roundTypes = new ConcurrentHashMap<>();
+	// "teamId:roundNum" → score (null key absence = not yet scored)
+	private final Map<String, Double> roundScores = new ConcurrentHashMap<>();
 
 	// rounds the quizmaster has marked as complete
 	private final Map<Integer, Boolean> completedRounds = new ConcurrentHashMap<>();
-
-	// roundNum → bonus points awarded for that round (e.g. 2 for R6 final bonus)
-	private final Map<Integer, Double> roundBonusAmount = new ConcurrentHashMap<>();
-
-	// "teamId:roundNum" → true if the team earned the bonus for that round
-	private final Map<String, Boolean> bonusAwards = new ConcurrentHashMap<>();
 
 	private final List<QuizSnapshot> history = new CopyOnWriteArrayList<>();
 
@@ -83,80 +55,12 @@ public class QuizService {
 		return Optional.ofNullable(activeSession);
 	}
 
-	public QuizSession createSession(int sessionNumber, String quizmasterName, LocalDate quizDate, int maxRounds,
-			double defaultPointsPerQuestion, List<Integer> roundQuestions, List<String> roundTypeList,
-			Map<String, Double> questionPointOverrides, Map<String, Double> questionMinOverrides,
-			Map<String, Double> bonusOverrides) {
+	public QuizSession createSession(int sessionNumber, String quizmasterName, LocalDate quizDate) {
 		var session = new QuizSession(UUID.randomUUID().toString(), sessionNumber, quizmasterName.trim(), quizDate,
-				maxRounds, defaultPointsPerQuestion, true);
+				true);
 		activeSession = session;
 		clearMutableState();
-		initRoundConfig(maxRounds, roundQuestions, roundTypeList);
-		if (questionPointOverrides != null) {
-			questionMaxPoints.putAll(questionPointOverrides);
-		}
-		if (questionMinOverrides != null) {
-			questionMinPoints.putAll(questionMinOverrides);
-		}
-		if (bonusOverrides != null) {
-			bonusOverrides.forEach((key, val) -> {
-				try {
-					roundBonusAmount.put(Integer.parseInt(key), val);
-				}
-				catch (NumberFormatException ignored) {
-				}
-			});
-		}
 		return session;
-	}
-
-	public double getRoundBonusAmount(int roundNum) {
-		return roundBonusAmount.getOrDefault(roundNum, 0.0);
-	}
-
-	public void setBonusAward(String teamId, int roundNum, boolean awarded) {
-		if (awarded) {
-			bonusAwards.put(teamId + ":" + roundNum, true);
-		}
-		else {
-			bonusAwards.remove(teamId + ":" + roundNum);
-		}
-		events.publishEvent(new ScoreChangedEvent(this));
-	}
-
-	public boolean hasBonusAward(String teamId, int roundNum) {
-		return bonusAwards.getOrDefault(teamId + ":" + roundNum, false);
-	}
-
-	public void setRoundBonusAmount(int roundNum, double amount) {
-		if (amount > 0) {
-			roundBonusAmount.put(roundNum, amount);
-		}
-		else {
-			roundBonusAmount.remove(roundNum);
-		}
-	}
-
-	private void initRoundConfig(int maxRounds, List<Integer> roundQuestions, List<String> roundTypeList) {
-		for (int r = 1; r <= maxRounds; r++) {
-			questionsPerRound.put(r, resolveQuestionCount(roundQuestions, r));
-			roundTypes.put(r, resolveRoundType(roundTypeList, r));
-		}
-	}
-
-	private static int resolveQuestionCount(List<Integer> roundQuestions, int roundIndex) {
-		if (roundQuestions == null || roundIndex > roundQuestions.size()) {
-			return DEFAULT_QUESTIONS;
-		}
-		Integer value = roundQuestions.get(roundIndex - 1);
-		return value != null ? Math.max(0, value) : DEFAULT_QUESTIONS;
-	}
-
-	private static RoundType resolveRoundType(List<String> roundTypeList, int roundIndex) {
-		if (roundTypeList == null || roundIndex > roundTypeList.size()) {
-			return RoundType.NORMAL;
-		}
-		return RoundType.fromString(roundTypeList.get(roundIndex - 1));
 	}
 
 	public void endQuiz() {
@@ -179,24 +83,36 @@ public class QuizService {
 
 	private void clearMutableState() {
 		teams.clear();
-		scores.clear();
-		roundTotalOverrides.clear();
-		jokers.clear();
-		questionMaxPoints.clear();
-		questionMinPoints.clear();
-		questionsPerRound.clear();
-		roundTypes.clear();
+		roundScores.clear();
 		completedRounds.clear();
-		roundBonusAmount.clear();
-		bonusAwards.clear();
 	}
 
 	// ── Teams ─────────────────────────────────────────────────────────────────
 
-	public Team addTeam(Integer tableNumber) {
-		var team = new Team(UUID.randomUUID().toString(), tableNumber);
+	public Team addTeam(Integer tableNumber, String customName) {
+		String cn = (customName != null && !customName.isBlank()) ? customName.trim() : null;
+		var team = new Team(UUID.randomUUID().toString(), tableNumber, cn);
 		teams.put(team.id(), team);
+		// Backfill all completed rounds with 0 so the team appears on the scoreboard
+		completedRounds.keySet().forEach(r -> roundScores.putIfAbsent(team.id() + ":" + r, 0.0));
+		events.publishEvent(new ScoreChangedEvent(this));
 		return team;
+	}
+
+	public void renameTeam(String teamId, String newName) {
+		Team current = teams.get(teamId);
+		if (current == null) {
+			return;
+		}
+		String cn = (newName != null && !newName.isBlank()) ? newName.trim() : null;
+		teams.put(teamId, new Team(teamId, current.tableNumber(), cn));
+		events.publishEvent(new ScoreChangedEvent(this));
+	}
+
+	public void deleteTeam(String teamId) {
+		teams.remove(teamId);
+		roundScores.keySet().removeIf(k -> k.startsWith(teamId + ":"));
+		events.publishEvent(new ScoreChangedEvent(this));
 	}
 
 	public void setStandardTables(List<Integer> tableNumbers) {
@@ -206,7 +122,8 @@ public class QuizService {
 		});
 		if (tableNumbers != null) {
 			tableNumbers.forEach(n -> {
-				var team = new Team(UUID.randomUUID().toString(), n);
+				String customName = (n == 25) ? "∞" : null;
+				var team = new Team(UUID.randomUUID().toString(), n, customName);
 				teams.put(team.id(), team);
 			});
 		}
@@ -225,45 +142,6 @@ public class QuizService {
 			.map(Team::tableNumber)
 			.filter(tn -> tn != null && tn >= 1 && tn <= 25)
 			.collect(Collectors.toSet());
-	}
-
-	// ── Questions per round ───────────────────────────────────────────────────
-
-	public int getQuestionsForRound(int roundNum) {
-		return questionsPerRound.getOrDefault(roundNum, 0);
-	}
-
-	public int addQuestionToRound(int roundNum) {
-		return questionsPerRound.merge(roundNum, 1, Integer::sum);
-	}
-
-	public void removeQuestionFromRound(int roundNum) {
-		questionsPerRound.compute(roundNum, (k, v) -> (v != null && v > 1) ? v - 1 : 0);
-	}
-
-	// ── Round types ───────────────────────────────────────────────────────────
-
-	public RoundType getRoundType(int roundNum) {
-		return roundTypes.getOrDefault(roundNum, RoundType.NORMAL);
-	}
-
-	// ── Question points config ────────────────────────────────────────────────
-
-	public double getQuestionMaxPoints(int roundNum, int questionNum) {
-		Double override = questionMaxPoints.get(roundNum + ":" + questionNum);
-		if (override != null) {
-			return override;
-		}
-		return activeSession != null ? activeSession.defaultPointsPerQuestion() : 1.0;
-	}
-
-	public double getQuestionMinPoints(int roundNum, int questionNum) {
-		Double min = questionMinPoints.get(roundNum + ":" + questionNum);
-		if (min != null) {
-			return min;
-		}
-		RoundType type = getRoundType(roundNum);
-		return type == RoundType.NEGATIVE ? -1.0 : 0.0;
 	}
 
 	// ── Round completion tracking ─────────────────────────────────────────────
@@ -288,52 +166,49 @@ public class QuizService {
 
 	// ── Scoring ───────────────────────────────────────────────────────────────
 
-	public void setScore(String teamId, int roundNum, int questionNum, double points) {
-		scores.put(scoreKey(teamId, roundNum, questionNum), points);
-		// Clear any direct total override for this round since per-Q scoring is active
-		roundTotalOverrides.remove(teamId + ":" + roundNum);
-		events.publishEvent(new ScoreChangedEvent(this));
-	}
-
-	public void setRoundTotal(String teamId, int roundNum, double total) {
-		roundTotalOverrides.put(teamId + ":" + roundNum, total);
-		// Clear per-Q scores for this round
-		int qCount = getQuestionsForRound(roundNum);
-		for (int q = 1; q <= qCount; q++) {
-			scores.remove(scoreKey(teamId, roundNum, q));
-		}
-		events.publishEvent(new ScoreChangedEvent(this));
-	}
-
-	public void clearRoundTotal(String teamId, int roundNum) {
-		roundTotalOverrides.remove(teamId + ":" + roundNum);
-		events.publishEvent(new ScoreChangedEvent(this));
-	}
-
-	public Double getRoundTotalOverride(String teamId, int roundNum) {
-		return roundTotalOverrides.get(teamId + ":" + roundNum);
-	}
-
-	public void setJoker(String teamId, int roundNum, int questionNum) {
-		if (questionNum <= 0) {
-			jokers.remove(jokerKey(teamId, roundNum));
+	public void setRoundScore(String teamId, int roundNum, Double score) {
+		if (score == null) {
+			roundScores.remove(teamId + ":" + roundNum);
 		}
 		else {
-			jokers.put(jokerKey(teamId, roundNum), questionNum);
+			roundScores.put(teamId + ":" + roundNum, score);
 		}
 		events.publishEvent(new ScoreChangedEvent(this));
 	}
 
-	public int getJokerQuestion(String teamId, int roundNum) {
-		return jokers.getOrDefault(jokerKey(teamId, roundNum), 0);
+	public double getRoundScore(String teamId, int roundNum) {
+		return roundScores.getOrDefault(teamId + ":" + roundNum, 0.0);
 	}
 
-	public boolean hasScore(String teamId, int roundNum, int questionNum) {
-		return scores.containsKey(scoreKey(teamId, roundNum, questionNum));
+	public boolean hasRoundScore(String teamId, int roundNum) {
+		return roundScores.containsKey(teamId + ":" + roundNum);
 	}
 
-	public double getScore(String teamId, int roundNum, int questionNum) {
-		return scores.getOrDefault(scoreKey(teamId, roundNum, questionNum), 0.0);
+	public String formatRoundScore(String teamId, int roundNum) {
+		if (!hasRoundScore(teamId, roundNum)) {
+			return "";
+		}
+		double score = getRoundScore(teamId, roundNum);
+		if (score == Math.floor(score) && !Double.isInfinite(score)) {
+			return String.valueOf((long) score);
+		}
+		return String.valueOf(score);
+	}
+
+	public double getTeamTotal(String teamId) {
+		double sum = 0.0;
+		for (int r = 1; r <= QuizSession.MAX_ROUNDS; r++) {
+			sum += roundScores.getOrDefault(teamId + ":" + r, 0.0);
+		}
+		return sum;
+	}
+
+	public String formatTeamTotal(String teamId) {
+		double total = getTeamTotal(teamId);
+		if (total == Math.floor(total) && !Double.isInfinite(total)) {
+			return String.valueOf((long) total);
+		}
+		return String.valueOf(total);
 	}
 
 	// ── Leaderboard ───────────────────────────────────────────────────────────
@@ -352,39 +227,14 @@ public class QuizService {
 	}
 
 	private TeamResult computeTeamResult(Team team) {
-		int maxRounds = activeSession.maxRounds();
 		Map<Integer, Double> roundTotals = new LinkedHashMap<>();
-		Set<Integer> jokerRounds = new HashSet<>();
-
-		for (int r = 1; r <= maxRounds; r++) {
-			Double override = roundTotalOverrides.get(team.id() + ":" + r);
-			if (override != null) {
-				double bonus = bonusAwards.getOrDefault(team.id() + ":" + r, false)
-						? roundBonusAmount.getOrDefault(r, 0.0) : 0.0;
-				roundTotals.put(r, override + bonus);
-				continue;
-			}
-			int qCount = questionsPerRound.getOrDefault(r, 0);
-			int jokerQ = jokers.getOrDefault(jokerKey(team.id(), r), 0);
-			double raw = 0.0;
-			for (int q = 1; q <= qCount; q++) {
-				double score = scores.getOrDefault(scoreKey(team.id(), r, q), 0.0);
-				if (q == jokerQ) {
-					score *= 2;
-				}
-				raw += score;
-			}
-			double bonus = bonusAwards.getOrDefault(team.id() + ":" + r, false)
-					? roundBonusAmount.getOrDefault(r, 0.0) : 0.0;
-			roundTotals.put(r, raw + bonus);
-			if (jokerQ > 0) {
-				jokerRounds.add(r);
-			}
+		for (int r = 1; r <= QuizSession.MAX_ROUNDS; r++) {
+			// null = not yet scored (shows as — on scoreboard)
+			roundTotals.put(r, roundScores.get(team.id() + ":" + r));
 		}
-
-		double grand = roundTotals.values().stream().mapToDouble(Double::doubleValue).sum();
-		return new TeamResult(team.id(), team.tableNumber(), Collections.unmodifiableMap(roundTotals),
-				Collections.unmodifiableSet(jokerRounds), grand);
+		double grand = roundTotals.values().stream().filter(Objects::nonNull).mapToDouble(Double::doubleValue).sum();
+		return new TeamResult(team.id(), team.tableNumber(), team.customName(),
+				Collections.unmodifiableMap(roundTotals), grand);
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────
@@ -397,18 +247,8 @@ public class QuizService {
 		return history.stream().filter(s -> s.sessionUuid().equals(uuid)).findFirst();
 	}
 
-	// ── Internals ─────────────────────────────────────────────────────────────
-
 	private QuizSnapshot buildSnapshot() {
 		return new QuizSnapshot(activeSession.name(), activeSession.uuid(), LocalDateTime.now(), computeLeaderboard());
-	}
-
-	private static String scoreKey(String teamId, int roundNum, int questionNum) {
-		return teamId + ":" + roundNum + ":" + questionNum;
-	}
-
-	private static String jokerKey(String teamId, int roundNum) {
-		return teamId + ":" + roundNum;
 	}
 
 }
