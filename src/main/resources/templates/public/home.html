@@ -14,7 +14,7 @@
     <div class="font-semibold mb-1" th:text="${activeSession.name()}">Cluesday N</div>
     <div class="text-sm text-muted mb-4"
          th:text="${'QM: ' + activeSession.quizmasterName() + ' &#183; ' + #temporals.format(activeSession.quizDate(), 'dd MMM yyyy')}"></div>
-    <a th:href="'/live/' + ${activeSession.uuid()}"
+    <a th:href="'/live/' + ${activeSession.sessionNumber()}"
        class="btn-primary block w-full" style="padding:10px;font-size:14px;">
       View Live Scoreboard &#8594;
     </a>

@@ -154,7 +154,7 @@
   </div>
   <div style="display:flex;flex:1;align-items:center;gap:8px;min-width:0;">
     <input id="pub-url" readonly type="text"
-           th:value="'/live/' + ${quizSession.uuid()}"
+           th:value="'/live/' + ${quizSession.sessionNumber()}"
            style="flex:1;min-width:0;background:var(--surf2);border:1px solid var(--border);
                   border-radius:4px;padding:5px 10px;font-size:10px;color:var(--muted);
                   font-family:'DM Mono',monospace;cursor:pointer;"

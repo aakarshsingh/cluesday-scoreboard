@@ -28,9 +28,10 @@ public class PublicController {
 		return "public/home";
 	}
 
-	@GetMapping("/live/{uuid}")
-	public String scoreboard(@PathVariable String uuid, Model model) {
-		var session = quizService.getActiveSession().filter(s -> s.uuid().equals(uuid));
+	@GetMapping("/live/{sessionNumber}")
+	public String scoreboard(@PathVariable int sessionNumber, Model model) {
+		var session = quizService.getActiveSession()
+			.filter(s -> s.sessionNumber() == sessionNumber);
 
 		if (session.isEmpty()) {
 			model.addAttribute("ended", true);
@@ -40,18 +41,19 @@ public class PublicController {
 		model.addAttribute("quizSession", session.get());
 		model.addAttribute("leaderboard", quizService.computeLeaderboard());
 		model.addAttribute("completedRounds", quizService.getCompletedRounds());
-		model.addAttribute("uuid", uuid);
+		model.addAttribute("sessionNumber", sessionNumber);
 		return "public/scoreboard";
 	}
 
-	@GetMapping(value = "/live/{uuid}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-	public SseEmitter stream(@PathVariable String uuid, HttpServletResponse response) {
-		// Disable nginx/Railway proxy buffering so SSE events are sent immediately
+	@GetMapping(value = "/live/{sessionNumber}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+	public SseEmitter stream(@PathVariable int sessionNumber, HttpServletResponse response) {
 		response.setHeader("X-Accel-Buffering", "no");
 		response.setHeader("Cache-Control", "no-cache, no-store");
 		response.setHeader("Connection", "keep-alive");
 
-		var session = quizService.getActiveSession().filter(s -> s.uuid().equals(uuid));
+		var session = quizService.getActiveSession()
+			.filter(s -> s.sessionNumber() == sessionNumber);
+
 		if (session.isEmpty()) {
 			var dead = new SseEmitter();
 			dead.complete();

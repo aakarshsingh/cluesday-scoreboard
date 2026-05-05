@@ -44,7 +44,7 @@
 </style>
 
 <script th:unless="${ended}" th:inline="javascript">
-  const uuid = /*[[${uuid}]]*/ '';
+  const sessionNumber = /*[[${sessionNumber}]]*/ 0;
 
   // ── Sort state ──────────────────────────────────────────────────────────────
   let sbSortCol = null;   // null = server order (by total desc)
@@ -84,7 +84,7 @@
   };
 
   // ── SSE ────────────────────────────────────────────────────────────────────
-  const src = new EventSource('/live/' + uuid + '/events');
+  const src = new EventSource('/live/' + sessionNumber + '/events');
 
   src.addEventListener('score-update', e => {
     document.getElementById('scoreboard-container').innerHTML = e.data;
