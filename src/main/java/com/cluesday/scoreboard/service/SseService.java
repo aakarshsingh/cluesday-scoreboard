@@ -43,9 +43,12 @@ public class SseService {
 		return emitter;
 	}
 
-	@EventListener
+	// SSE push on score change temporarily disabled — ClassLoaderTemplateResolver
+	// fix is in ThymeleafConfig but needs production verification first.
+	// Re-enable by un-commenting the @EventListener annotation.
+	// @EventListener
 	public void onScoreChanged(ScoreChangedEvent event) {
-		broadcastScoreboard();
+		// broadcastScoreboard();
 	}
 
 	@EventListener

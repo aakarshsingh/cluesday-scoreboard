@@ -138,7 +138,7 @@
     rows.innerHTML = '';
     for (let r = 1; r <= n; r++) {
       const def = DEFS[r] || {q:5, rt:'NORMAL'};
-      const isLast = (r === count);
+      const isLast = (r === n);
       const row = document.createElement('div');
       const cols = isLast ? '28px 1fr 1fr 60px' : '28px 1fr 1fr';
       row.style.cssText = `display:grid;grid-template-columns:${cols};gap:8px;margin-bottom:8px;align-items:center;`;

@@ -21,7 +21,7 @@
                  min-width:56px;border-left:1px solid #1e2438;cursor:pointer;user-select:none;white-space:nowrap;">
       </th>
       <th th:attr="onclick='sortSB(' + (${#sets.size(completedRounds)} + 2) + ')'"
-          style="text-align:right;padding:10px 14px;color:#dde1f0;font-size:11px;font-weight:600;
+          style="text-align:center;padding:10px 14px;color:#dde1f0;font-size:11px;font-weight:600;
                  border-left:1px solid #1e2438;cursor:pointer;user-select:none;white-space:nowrap;">
         Total <span style="font-size:9px;color:#4e5472;">&#8597;</span></th>
     </tr>
@@ -52,7 +52,7 @@
               style="color:#2a2e40;font-family:'DM Mono',monospace;">&#8212;</span>
       </td>
 
-      <td style="text-align:right;padding:10px 14px;font-weight:700;font-size:16px;
+      <td style="text-align:center;padding:10px 14px;font-weight:700;font-size:16px;
                  border-left:1px solid #1e2438;font-family:'DM Mono',monospace;"
           th:style="${iter.index == 0} ? 'color:#f0a500;' : 'color:#dde1f0;'"
           th:text="${#numbers.formatDecimal(result.grandTotal(), 1, 1)}">0</td>
