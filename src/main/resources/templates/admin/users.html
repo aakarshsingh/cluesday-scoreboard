@@ -37,7 +37,8 @@
         <form th:action="'/admin/users/' + ${user.id} + '/delete'" method="post">
           <button type="submit" class="btn-danger"
                   style="padding:4px 10px;font-size:11px;"
-                  th:onclick="'return confirm(\'Delete ' + ${user.username} + '?\')'">Delete</button>
+                  th:attr="data-name=${user.username}"
+                  onclick="return confirm('Delete ' + this.dataset.name + '?')">Delete</button>
         </form>
       </li>
       <li th:if="${#lists.isEmpty(users)}" class="text-sm text-muted" style="padding:16px 0;">
