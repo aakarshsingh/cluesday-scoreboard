@@ -21,7 +21,7 @@ public class AppUserEntity {
 	@Column(nullable = false)
 	private String password;
 
-	@Column(nullable = false, columnDefinition = "VARCHAR(16) DEFAULT 'QM'")
+	@Column(nullable = false)
 	private String role = "QM";
 
 	@Column(nullable = false)
