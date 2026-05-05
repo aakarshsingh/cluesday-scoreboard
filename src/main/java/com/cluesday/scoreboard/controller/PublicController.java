@@ -2,6 +2,7 @@ package com.cluesday.scoreboard.controller;
 
 import com.cluesday.scoreboard.service.QuizService;
 import com.cluesday.scoreboard.service.SseService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -44,9 +45,13 @@ public class PublicController {
 	}
 
 	@GetMapping(value = "/live/{uuid}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-	public SseEmitter stream(@PathVariable String uuid) {
-		var session = quizService.getActiveSession().filter(s -> s.uuid().equals(uuid));
+	public SseEmitter stream(@PathVariable String uuid, HttpServletResponse response) {
+		// Disable nginx/Railway proxy buffering so SSE events are sent immediately
+		response.setHeader("X-Accel-Buffering", "no");
+		response.setHeader("Cache-Control", "no-cache, no-store");
+		response.setHeader("Connection", "keep-alive");
 
+		var session = quizService.getActiveSession().filter(s -> s.uuid().equals(uuid));
 		if (session.isEmpty()) {
 			var dead = new SseEmitter();
 			dead.complete();

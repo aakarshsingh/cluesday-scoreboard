@@ -230,6 +230,54 @@
     /* ── Details/summary ────────────────────────────── */
     details > summary { list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
+
+    /* ── Dashboard: sticky first column ─────────────── */
+    .sticky-col {
+      position: sticky; left: 0; background: var(--bg); z-index: 2;
+    }
+    .sticky-col::after {
+      content: ''; position: absolute; right: 0; top: 0; bottom: 0;
+      width: 1px; background: var(--border);
+    }
+
+    /* ── Dashboard: question cell min-width ─────────── */
+    .q-cell { min-width: 96px; }
+
+    /* ── Dashboard: inline custom score input ────────── */
+    .inline-score {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      width: 38px;
+      background: var(--surf2); border: 1px solid var(--border);
+      border-radius: 3px; padding: 2px 4px;
+      text-align: center; color: var(--muted);
+      appearance: textfield;
+    }
+    .inline-score:focus { outline: none; border-color: var(--blue); color: var(--text); }
+    .inline-score::-webkit-outer-spin-button,
+    .inline-score::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .inline-score::placeholder { color: var(--muted); opacity: .5; }
+
+    /* ── Dashboard: row-level ✓/✗ buttons ────────────── */
+    .row-btn {
+      font-size: 11px; padding: 2px 5px; border-radius: 3px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surf2); color: var(--muted);
+      transition: border-color 60ms; line-height: 1.6;
+    }
+    .row-btn.ok  { border-color: #1a3a22; color: var(--green); }
+    .row-btn.clr { border-color: #3d1212; color: var(--red); }
+    .row-btn.ok:hover  { border-color: var(--green); }
+    .row-btn.clr:hover { border-color: var(--red); }
+
+    /* ── Dashboard: question checkbox ───────────────── */
+    .qcheck { width: 13px; height: 13px; accent-color: var(--blue); cursor: pointer; }
+
+    /* ── Dashboard: joker select ─────────────────────── */
+    .joker-sel {
+      background: var(--surf2); border: 1px solid var(--border); border-radius: 4px;
+      padding: 3px 4px; font-size: 11px; color: var(--text);
+      font-family: 'DM Mono', monospace; max-width: 72px; cursor: pointer;
+    }
+    .joker-sel:focus { outline: none; border-color: var(--blue); }
   </style>
 </head>
 </html>

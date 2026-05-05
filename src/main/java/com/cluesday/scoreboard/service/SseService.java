@@ -4,8 +4,10 @@ import com.cluesday.scoreboard.event.QuizEndedEvent;
 import com.cluesday.scoreboard.event.ScoreChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.thymeleaf.TemplateEngine;
@@ -27,13 +29,13 @@ public class SseService {
 
 	private final TemplateEngine templateEngine;
 
-	public SseService(QuizService quizService, TemplateEngine templateEngine) {
+	public SseService(QuizService quizService, @Qualifier("sseTemplateEngine") TemplateEngine templateEngine) {
 		this.quizService = quizService;
 		this.templateEngine = templateEngine;
 	}
 
 	public SseEmitter register() {
-		var emitter = new SseEmitter(Long.MAX_VALUE);
+		var emitter = new SseEmitter(0L); // 0 = no timeout
 		emitter.onCompletion(() -> emitters.remove(emitter));
 		emitter.onTimeout(() -> emitters.remove(emitter));
 		emitter.onError(e -> emitters.remove(emitter));
@@ -54,7 +56,28 @@ public class SseService {
 		emitters.clear();
 	}
 
+	// Keep Railway/nginx connections alive — comment events are invisible to JS clients
+	@Scheduled(fixedDelay = 20_000)
+	public void heartbeat() {
+		if (emitters.isEmpty()) {
+			return;
+		}
+		List<SseEmitter> dead = new ArrayList<>();
+		for (SseEmitter emitter : emitters) {
+			try {
+				emitter.send(SseEmitter.event().comment("keepalive"));
+			}
+			catch (IOException e) {
+				dead.add(emitter);
+			}
+		}
+		emitters.removeAll(dead);
+	}
+
 	private void broadcastScoreboard() {
+		if (emitters.isEmpty()) {
+			return;
+		}
 		try {
 			var ctx = new Context();
 			ctx.setVariable("leaderboard", quizService.computeLeaderboard());
@@ -64,7 +87,7 @@ public class SseService {
 			broadcast("score-update", html);
 		}
 		catch (Exception e) {
-			log.error("broadcastScoreboard failed — check scoreboard-table.html: {}", e.getMessage());
+			log.error("broadcastScoreboard failed: {}", e.getMessage());
 		}
 	}
 

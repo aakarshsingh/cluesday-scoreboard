@@ -50,10 +50,11 @@ public class AdminController {
 			ra.addFlashAttribute("error", "A quiz is already active.");
 			return "redirect:/quizSetup";
 		}
-		Map<String, Double> maxOverrides = parseParams(request, "qpt_");
-		Map<String, Double> minOverrides = parseParams(request, "qptmin_");
+		Map<String, Double> maxOverrides  = parseParams(request, "qpt_");
+		Map<String, Double> minOverrides  = parseParams(request, "qptmin_");
+		Map<String, Double> bonusOverrides = parseParams(request, "bonus_");
 		quizService.createSession(sessionNumber, quizmasterName, quizDate, maxRounds, defaultPointsPerQuestion,
-				roundQuestions, roundTypeList, maxOverrides, minOverrides);
+				roundQuestions, roundTypeList, maxOverrides, minOverrides, bonusOverrides);
 		return "redirect:/quizSetup/teams";
 	}
 
@@ -127,6 +128,12 @@ public class AdminController {
 		return "redirect:/quizSetup";
 	}
 
+	@PostMapping("/discard")
+	public String discardQuiz() {
+		quizService.resetSession();
+		return "redirect:/quizSetup";
+	}
+
 	// ── Round question management ─────────────────────────────────────────────
 
 	@PostMapping("/round/{roundNum}/add-question")
@@ -180,6 +187,14 @@ public class AdminController {
 	@ResponseBody
 	public String setJoker(@RequestParam String teamId, @RequestParam int roundNum, @RequestParam int questionNum) {
 		quizService.setJoker(teamId, roundNum, questionNum);
+		return "ok";
+	}
+
+	@PostMapping("/bonus")
+	@ResponseBody
+	public String setBonus(@RequestParam String teamId, @RequestParam int roundNum,
+			@RequestParam boolean awarded) {
+		quizService.setBonusAward(teamId, roundNum, awarded);
 		return "ok";
 	}
 

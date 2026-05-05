@@ -138,16 +138,23 @@
     rows.innerHTML = '';
     for (let r = 1; r <= n; r++) {
       const def = DEFS[r] || {q:5, rt:'NORMAL'};
+      const isLast = (r === count);
       const row = document.createElement('div');
-      row.style.cssText = 'display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;margin-bottom:8px;align-items:center;';
+      const cols = isLast ? '28px 1fr 1fr 60px' : '28px 1fr 1fr';
+      row.style.cssText = `display:grid;grid-template-columns:${cols};gap:8px;margin-bottom:8px;align-items:center;`;
       row.innerHTML =
         `<span class="mono" style="font-size:11px;color:var(--muted);">R${r}</span>` +
-        `<input type="number" name="q" id="rq_${r}" value="${def.q}" min="0" max="50" class="field-sm" style="width:100%;"/>` +
-        `<select name="rt" id="rt_${r}" class="field-sm" style="width:100%;">
+        `<input type="number" name="q" id="rq_${r}" value="${def.q}" min="0" max="50" class="field-sm" style="width:100%;"
+                oninput="if(document.getElementById('qpts-details').open)rebuildQPts()"/>` +
+        `<select name="rt" id="rt_${r}" class="field-sm" style="width:100%;"
+                 onchange="if(document.getElementById('qpts-details').open)rebuildQPts()">
            <option value="NORMAL"${def.rt==='NORMAL'?' selected':''}>Normal</option>
            <option value="NEGATIVE"${def.rt==='NEGATIVE'?' selected':''}>Negative (&#8722;1/0/+1)</option>
            <option value="DYNAMIC"${def.rt==='DYNAMIC'?' selected':''}>Dynamic Scoring</option>
-         </select>`;
+         </select>` +
+        (isLast ? `<input type="number" name="bonus_${r}" id="rb_${r}" value="" min="0" step="0.5"
+                          class="field-sm" style="width:60px;" placeholder="Bonus"
+                          title="Bonus points for this round (optional)"/>` : '');
       rows.appendChild(row);
     }
     if (document.getElementById('qpts-details').open) rebuildQPts();

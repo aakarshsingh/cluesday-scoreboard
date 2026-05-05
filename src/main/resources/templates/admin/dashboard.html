@@ -1,30 +1,32 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{layout/head :: head('Dashboard')}">
-<style>
-  .sticky-col { position:sticky;left:0;background:var(--bg);z-index:2; }
-  .sticky-col::after { content:'';position:absolute;right:0;top:0;bottom:0;width:1px;background:var(--border); }
-  .q-cell { min-width:96px; }
-  .qcheck { width:13px;height:13px;accent-color:var(--blue);cursor:pointer; }
-  .row-btn {
-    font-size:11px;padding:1px 5px;border-radius:3px;cursor:pointer;
-    border:1px solid var(--border);background:var(--surf2);color:var(--muted);
-    transition:border-color 60ms;line-height:1.6;
-  }
-  .row-btn:hover { border-color:#3a4060; color:var(--text); }
-  .row-btn.ok  { border-color:var(--green); color:var(--green); }
-  .row-btn.clr { border-color:var(--red); color:var(--red); }
-  .inline-score {
-    font-family:'DM Mono',monospace; font-size:11px;
-    width:42px; background:var(--surf2); border:1px solid var(--border);
-    border-radius:3px; padding:2px 4px; text-align:center; color:var(--muted);
-    appearance:textfield;
-  }
-  .inline-score:focus { outline:none; border-color:var(--blue); color:var(--text); }
-  .inline-score::-webkit-outer-spin-button,.inline-score::-webkit-inner-spin-button{-webkit-appearance:none;}
-</style>
-</head>
+<head th:replace="~{layout/head :: head('Dashboard')}"></head>
 <body style="padding:10px;padding-bottom:40px;">
+
+<!-- End Quiz modal -->
+<div id="end-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
+            align-items:center;justify-content:center;">
+  <div class="card p-6" style="max-width:320px;width:90%;">
+    <h3 class="font-semibold mb-2">End Quiz</h3>
+    <p class="text-sm text-muted mb-5">Save scores to history, or discard this session?</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <form method="post" action="/quizSetup/end">
+        <button type="submit" class="btn-primary w-full" style="font-size:13px;padding:9px;">
+          Save &amp; End
+        </button>
+      </form>
+      <form method="post" action="/quizSetup/discard">
+        <button type="submit" class="btn-danger w-full"
+                onclick="return confirm('Discard all scores? This cannot be undone.')">
+          Discard
+        </button>
+      </form>
+      <button onclick="document.getElementById('end-modal').style.display='none'"
+              class="btn-ghost w-full text-sm" style="font-size:13px;">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
   const API = '/quizSetup';
@@ -36,7 +38,7 @@
   }
 
   function setScore(teamId, roundNum, questionNum, points) {
-    post('/score', 'teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&questionNum='+questionNum+'&points='+points);
+    post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&questionNum='+questionNum+'&points='+points);
     const cell = document.getElementById('cell-'+teamId+'-'+roundNum+'-'+questionNum);
     if (!cell) return;
     cell.querySelectorAll('[data-pts]').forEach(b => {
@@ -45,30 +47,26 @@
     const cb = cell.querySelector('input[type=checkbox]');
     if (cb) cb.checked = Math.abs(parseFloat(points)-parseFloat(cell.dataset.defPts))<0.001;
     cell.dataset.scored = 'true';
-    // Sync inline free input
     const fi = cell.querySelector('.inline-score');
-    if (fi) fi.value = (points==0)?'':points;
-    // Clear row total override display
+    if (fi && parseFloat(fi.value)!==parseFloat(points)) fi.value = (points==0)?'':points;
     const tot = document.getElementById('tot-'+teamId+'-'+roundNum);
-    if (tot) { tot.value=''; }
+    if (tot) tot.value='';
   }
 
   function onCheckbox(cb) {
-    setScore(cb.dataset.teamId,cb.dataset.r,cb.dataset.q,cb.checked?parseFloat(cb.dataset.dp):0);
+    setScore(cb.dataset.teamId, cb.dataset.r, cb.dataset.q, cb.checked ? parseFloat(cb.dataset.dp) : 0);
   }
 
-  // Row-level: score all Qs to max (✓) or zero (✗)
   function scoreAllQ(teamId, r, maxPts) {
-    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell=>{
+    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell => {
       const q = cell.id.split('-').pop();
       const dp = parseFloat(cell.dataset.defPts) || maxPts;
       setScore(teamId, r, q, dp);
     });
   }
   function clearAllQ(teamId, r) {
-    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell=>{
-      const q = cell.id.split('-').pop();
-      setScore(teamId, r, q, 0);
+    document.querySelectorAll('[id^="cell-'+teamId+'-'+r+'-"]').forEach(cell => {
+      setScore(teamId, r, cell.id.split('-').pop(), 0);
     });
   }
 
@@ -76,48 +74,43 @@
     post('/joker','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&questionNum='+sel.value);
   }
 
-  const _dbt={};
-  function debounce(key, fn, ms=350) {
-    clearTimeout(_dbt[key]); _dbt[key]=setTimeout(fn,ms);
+  function setBonus(cb) {
+    post('/bonus','teamId='+encodeURIComponent(cb.dataset.teamId)+'&roundNum='+cb.dataset.r+'&awarded='+cb.checked);
   }
 
+  const _dbt = {};
+  function debounce(key, fn, ms=350) { clearTimeout(_dbt[key]); _dbt[key]=setTimeout(fn,ms); }
+
   function setInlineScore(input) {
-    const {teamId,r,q} = input.dataset;
-    if (input.value==='') return;
-    const pts=parseFloat(input.value);
-    if(isNaN(pts)) return;
-    debounce('is-'+teamId+'-'+r+'-'+q, ()=>{
+    const {teamId, r, q} = input.dataset;
+    if (!input.value) return;
+    const pts = parseFloat(input.value);
+    if (isNaN(pts)) return;
+    debounce('is-'+teamId+'-'+r+'-'+q, () => {
       post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+r+'&questionNum='+q+'&points='+pts);
-      const cell=document.getElementById('cell-'+teamId+'-'+r+'-'+q);
-      if(!cell) return;
-      cell.querySelectorAll('[data-pts]').forEach(b=>b.dataset.active='false');
-      const cb=cell.querySelector('input[type=checkbox]');
-      if(cb) cb.checked=false;
+      const cell = document.getElementById('cell-'+teamId+'-'+r+'-'+q);
+      if (!cell) return;
+      cell.querySelectorAll('[data-pts]').forEach(b => b.dataset.active='false');
+      const cb = cell.querySelector('input[type=checkbox]'); if (cb) cb.checked=false;
     });
   }
 
   function setFreeScore(input) {
-    const {teamId,r,q} = input.dataset;
-    const pts=parseFloat(input.value);
-    if(isNaN(pts)) return;
-    debounce('fs-'+teamId+'-'+r+'-'+q, ()=>{
+    const {teamId, r, q} = input.dataset;
+    const pts = parseFloat(input.value); if (isNaN(pts)) return;
+    debounce('fs-'+teamId+'-'+r+'-'+q, () => {
       post('/score','teamId='+encodeURIComponent(teamId)+'&roundNum='+r+'&questionNum='+q+'&points='+pts);
     });
   }
 
   function setTotalDirect(input, teamId, roundNum) {
-    debounce('tot-'+teamId+'-'+roundNum, ()=>{
-      if(input.value===''){
-        post('/round-total/clear','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum);
-        return;
-      }
-      const total=parseFloat(input.value);
-      if(isNaN(total)) return;
+    debounce('tot-'+teamId+'-'+roundNum, () => {
+      if (!input.value) { post('/round-total/clear','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum); return; }
+      const total = parseFloat(input.value); if (isNaN(total)) return;
       post('/round-total','teamId='+encodeURIComponent(teamId)+'&roundNum='+roundNum+'&total='+total);
-      document.querySelectorAll('[id^="cell-'+teamId+'-'+roundNum+'-"]').forEach(c=>{
+      document.querySelectorAll('[id^="cell-'+teamId+'-'+roundNum+'-"]').forEach(c => {
         c.querySelectorAll('[data-pts]').forEach(b=>b.dataset.active='false');
-        const cb=c.querySelector('input[type=checkbox]');
-        if(cb) cb.checked=false;
+        const cb=c.querySelector('input[type=checkbox]'); if (cb) cb.checked=false;
       });
     });
   }
@@ -126,20 +119,15 @@
     post('/round/'+cb.dataset.r+'/complete','complete='+cb.checked);
   }
 
-  function addQuestion(r) {
-    post('/round/'+r+'/add-question','').then(()=>location.reload());
-  }
-  function removeQuestion(r) {
-    post('/round/'+r+'/remove-question','').then(()=>location.reload());
-  }
+  function addQuestion(r) { post('/round/'+r+'/add-question','').then(()=>location.reload()); }
+  function removeQuestion(r) { post('/round/'+r+'/remove-question','').then(()=>location.reload()); }
 
   function copyUrl() {
-    const val=document.getElementById('pub-url').value;
+    const val = document.getElementById('pub-url').value;
     navigator.clipboard.writeText(window.location.origin+val);
-    const btn=document.getElementById('copy-btn');
-    const orig=btn.textContent;
-    btn.textContent='Copied';
-    setTimeout(()=>btn.textContent=orig,1800);
+    const btn = document.getElementById('copy-btn');
+    const orig = btn.textContent; btn.textContent='Copied';
+    setTimeout(()=>btn.textContent=orig, 1800);
   }
 
   function showRound(n) {
@@ -147,8 +135,8 @@
     document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
     const panel=document.querySelector('[data-panel="'+n+'"]');
     const tab=document.querySelector('.rtab[data-tab="'+n+'"]');
-    if(panel) panel.style.display='';
-    if(tab) tab.classList.add('active');
+    if (panel) panel.style.display='';
+    if (tab) tab.classList.add('active');
     history.replaceState(null,'','#round-'+n);
   }
 
@@ -174,10 +162,8 @@
     <button id="copy-btn" onclick="copyUrl()" class="btn-ghost"
             style="padding:4px 10px;font-size:11px;white-space:nowrap;">Copy</button>
   </div>
-  <form method="post" action="/quizSetup/end"
-        onsubmit="return confirm('End quiz and save to history?')" style="flex-shrink:0;">
-    <button class="btn-danger" style="padding:5px 11px;font-size:11px;">End Quiz</button>
-  </form>
+  <button onclick="document.getElementById('end-modal').style.display='flex'"
+          class="btn-danger" style="padding:5px 11px;font-size:11px;flex-shrink:0;">End Quiz</button>
 </div>
 
 <!-- Round tabs -->
@@ -193,7 +179,8 @@
 <th:block th:each="r : ${#numbers.sequence(1, quizSession.maxRounds())}">
   <div th:attr="data-panel=${r}" style="display:none;padding-top:10px;">
     <th:block th:with="rt=${quizService.getRoundType(r).name()},
-                        dp=${quizSession.defaultPointsPerQuestion()}">
+                        hasBonus=${quizService.getRoundBonusAmount(r) > 0},
+                        bonusAmt=${quizService.getRoundBonusAmount(r)}">
 
       <!-- Round controls -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
@@ -209,7 +196,7 @@
           <button type="button" th:onclick="'addQuestion('+${r}+')'"
                   class="row-btn" style="padding:2px 8px;">+ Q</button>
           <span class="mono text-xs text-muted"
-                th:text="${quizService.getQuestionsForRound(r)} + ' questions'"></span>
+                th:text="${quizService.getQuestionsForRound(r)} + ' Q'"></span>
         </div>
       </div>
 
@@ -226,21 +213,26 @@
                 <span class="mono" style="font-size:9px;color:#3a4060;"
                       th:text="${rt == 'DYNAMIC'} ? (${#numbers.formatDecimal(quizService.getQuestionMinPoints(r,q),1,1)}+'/'+${#numbers.formatDecimal(mx,1,1)}) : ${#numbers.formatDecimal(mx,1,1)}"></span>
               </th>
-              <!-- Joker column header: only rounds 1–4 -->
-              <th th:if="${r <= 4}" style="min-width:72px;white-space:nowrap;">Joker Q</th>
-              <th style="min-width:68px;">Total</th>
+              <!-- Joker: rounds 1–4 only -->
+              <th th:if="${r <= 4}" style="min-width:76px;white-space:nowrap;font-size:11px;">Joker Q</th>
+              <!-- Bonus: only if configured for this round -->
+              <th th:if="${hasBonus}"
+                  style="min-width:64px;white-space:nowrap;font-size:11px;"
+                  th:text="'Bonus +' + ${#numbers.formatDecimal(bonusAmt,1,1)}">Bonus</th>
+              <th style="min-width:68px;font-size:11px;">Total</th>
             </tr>
           </thead>
           <tbody>
             <tr th:each="team : ${teams}">
 
-              <!-- Team label + row quick-score -->
+              <!-- Team label + ✓/✗ quick-score -->
               <td class="left sticky-col" style="padding:5px 8px;">
                 <span class="mono font-medium text-amber" style="font-size:13px;display:block;"
                       th:text="${team.displayName()}">T1</span>
                 <div style="display:flex;gap:3px;margin-top:3px;">
                   <button type="button" class="row-btn ok"
-                          th:data-team-id="${team.id()}" th:data-r="${r}" th:data-dp="${dp}"
+                          th:data-team-id="${team.id()}" th:data-r="${r}"
+                          th:data-dp="${quizSession.defaultPointsPerQuestion()}"
                           onclick="scoreAllQ(this.dataset.teamId,this.dataset.r,parseFloat(this.dataset.dp))">&#10003;</button>
                   <button type="button" class="row-btn clr"
                           th:data-team-id="${team.id()}" th:data-r="${r}"
@@ -317,26 +309,33 @@
                            th:placeholder="${#numbers.formatDecimal(dp2,1,1)}"
                            th:value="${hs} ? ${#numbers.formatDecimal(cs,1,2)} : ''"
                            th:data-team-id="${team.id()}" th:data-r="${r}" th:data-q="${q}"
-                           oninput="setFreeScore(this)" style="width:64px;"/>
+                           oninput="setFreeScore(this)" style="width:60px;"/>
                   </td>
 
                 </th:block>
               </th:block>
 
-              <!-- Joker dropdown — ONLY rounds 1–4 -->
+              <!-- Joker dropdown: rounds 1–4 only -->
               <td th:if="${r <= 4}" style="text-align:center;">
                 <select th:if="${quizService.getQuestionsForRound(r) > 0}"
+                        class="joker-sel"
                         th:data-team-id="${team.id()}" th:data-r="${r}"
-                        onchange="setJoker(this,this.dataset.teamId,this.dataset.r)"
-                        style="background:var(--surf2);border:1px solid var(--border);border-radius:4px;
-                               padding:3px 4px;font-size:11px;color:var(--muted);
-                               font-family:'DM Mono',monospace;max-width:72px;">
+                        onchange="setJoker(this,this.dataset.teamId,this.dataset.r)">
                   <option value="0" th:selected="${quizService.getJokerQuestion(team.id(), r) == 0}">&#8212;</option>
                   <th:block th:each="q : ${#numbers.sequence(1, quizService.getQuestionsForRound(r))}">
                     <option th:value="${q}" th:text="'Q' + ${q}"
                             th:selected="${quizService.getJokerQuestion(team.id(), r) == q}">Q1</option>
                   </th:block>
                 </select>
+              </td>
+
+              <!-- Bonus checkbox: only if round has a bonus configured -->
+              <td th:if="${hasBonus}" style="text-align:center;">
+                <input type="checkbox" class="check-green"
+                       th:checked="${quizService.hasBonusAward(team.id(), r)}"
+                       th:data-team-id="${team.id()}" th:data-r="${r}"
+                       onchange="setBonus(this)"
+                       style="width:16px;height:16px;cursor:pointer;"/>
               </td>
 
               <!-- Direct total override -->
@@ -349,7 +348,7 @@
                          th:data-team-id="${team.id()}" th:data-r="${r}"
                          oninput="setTotalDirect(this,this.dataset.teamId,this.dataset.r)"
                          th:style="${ov != null} ? 'border-color:var(--amber);color:var(--amber);' : ''"
-                         style="width:60px;"/>
+                         style="width:56px;"/>
                 </th:block>
               </td>
 

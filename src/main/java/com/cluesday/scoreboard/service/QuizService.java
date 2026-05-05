@@ -61,6 +61,12 @@ public class QuizService {
 	// rounds the quizmaster has marked as complete
 	private final Map<Integer, Boolean> completedRounds = new ConcurrentHashMap<>();
 
+	// roundNum → bonus points awarded for that round (e.g. 2 for R6 final bonus)
+	private final Map<Integer, Double> roundBonusAmount = new ConcurrentHashMap<>();
+
+	// "teamId:roundNum" → true if the team earned the bonus for that round
+	private final Map<String, Boolean> bonusAwards = new ConcurrentHashMap<>();
+
 	private final List<QuizSnapshot> history = new CopyOnWriteArrayList<>();
 
 	public QuizService(ApplicationEventPublisher events) {
@@ -79,7 +85,8 @@ public class QuizService {
 
 	public QuizSession createSession(int sessionNumber, String quizmasterName, LocalDate quizDate, int maxRounds,
 			double defaultPointsPerQuestion, List<Integer> roundQuestions, List<String> roundTypeList,
-			Map<String, Double> questionPointOverrides, Map<String, Double> questionMinOverrides) {
+			Map<String, Double> questionPointOverrides, Map<String, Double> questionMinOverrides,
+			Map<String, Double> bonusOverrides) {
 		var session = new QuizSession(UUID.randomUUID().toString(), sessionNumber, quizmasterName.trim(), quizDate,
 				maxRounds, defaultPointsPerQuestion, true);
 		activeSession = session;
@@ -91,7 +98,43 @@ public class QuizService {
 		if (questionMinOverrides != null) {
 			questionMinPoints.putAll(questionMinOverrides);
 		}
+		if (bonusOverrides != null) {
+			bonusOverrides.forEach((key, val) -> {
+				try {
+					roundBonusAmount.put(Integer.parseInt(key), val);
+				}
+				catch (NumberFormatException ignored) {
+				}
+			});
+		}
 		return session;
+	}
+
+	public double getRoundBonusAmount(int roundNum) {
+		return roundBonusAmount.getOrDefault(roundNum, 0.0);
+	}
+
+	public void setBonusAward(String teamId, int roundNum, boolean awarded) {
+		if (awarded) {
+			bonusAwards.put(teamId + ":" + roundNum, true);
+		}
+		else {
+			bonusAwards.remove(teamId + ":" + roundNum);
+		}
+		events.publishEvent(new ScoreChangedEvent(this));
+	}
+
+	public boolean hasBonusAward(String teamId, int roundNum) {
+		return bonusAwards.getOrDefault(teamId + ":" + roundNum, false);
+	}
+
+	public void setRoundBonusAmount(int roundNum, double amount) {
+		if (amount > 0) {
+			roundBonusAmount.put(roundNum, amount);
+		}
+		else {
+			roundBonusAmount.remove(roundNum);
+		}
 	}
 
 	private void initRoundConfig(int maxRounds, List<Integer> roundQuestions, List<String> roundTypeList) {
@@ -144,6 +187,8 @@ public class QuizService {
 		questionsPerRound.clear();
 		roundTypes.clear();
 		completedRounds.clear();
+		roundBonusAmount.clear();
+		bonusAwards.clear();
 	}
 
 	// ── Teams ─────────────────────────────────────────────────────────────────
@@ -314,7 +359,9 @@ public class QuizService {
 		for (int r = 1; r <= maxRounds; r++) {
 			Double override = roundTotalOverrides.get(team.id() + ":" + r);
 			if (override != null) {
-				roundTotals.put(r, override);
+				double bonus = bonusAwards.getOrDefault(team.id() + ":" + r, false)
+						? roundBonusAmount.getOrDefault(r, 0.0) : 0.0;
+				roundTotals.put(r, override + bonus);
 				continue;
 			}
 			int qCount = questionsPerRound.getOrDefault(r, 0);
@@ -327,7 +374,9 @@ public class QuizService {
 				}
 				raw += score;
 			}
-			roundTotals.put(r, raw);
+			double bonus = bonusAwards.getOrDefault(team.id() + ":" + r, false)
+					? roundBonusAmount.getOrDefault(r, 0.0) : 0.0;
+			roundTotals.put(r, raw + bonus);
 			if (jokerQ > 0) {
 				jokerRounds.add(r);
 			}
