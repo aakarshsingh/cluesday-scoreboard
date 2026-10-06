@@ -3,6 +3,7 @@ package com.cluesday.scoreboard.service;
 import com.cluesday.scoreboard.entity.QuizResultEntity;
 import com.cluesday.scoreboard.event.QuizEndedEvent;
 import com.cluesday.scoreboard.event.ScoreChangedEvent;
+import com.cluesday.scoreboard.model.DashboardState;
 import com.cluesday.scoreboard.model.QuizSession;
 import com.cluesday.scoreboard.model.QuizSnapshot;
 import com.cluesday.scoreboard.model.Team;
@@ -228,6 +229,33 @@ public class QuizService {
 		events.publishEvent(new ScoreChangedEvent(this));
 	}
 
+	/**
+	 * Sets a score only if the stored value still equals {@code expected} (null = no
+	 * score). Stops a device showing stale scores from overwriting newer ones.
+	 * @return true if written, false if the stored value had changed
+	 */
+	public boolean setRoundScoreIfUnchanged(String teamId, int roundNum, Double expected, Double score) {
+		boolean[] applied = { false };
+		roundScores.compute(teamId + ":" + roundNum, (key, current) -> {
+			if (!sameScore(current, expected)) {
+				return current;
+			}
+			applied[0] = true;
+			return score; // null removes the entry
+		});
+		if (applied[0]) {
+			events.publishEvent(new ScoreChangedEvent(this));
+		}
+		return applied[0];
+	}
+
+	private static boolean sameScore(Double a, Double b) {
+		if (a == null || b == null) {
+			return a == b;
+		}
+		return Math.abs(a - b) < 1e-9;
+	}
+
 	public double getRoundScore(String teamId, int roundNum) {
 		return roundScores.getOrDefault(teamId + ":" + roundNum, 0.0);
 	}
@@ -261,6 +289,26 @@ public class QuizService {
 			return String.valueOf((long) total);
 		}
 		return String.valueOf(total);
+	}
+
+	public Optional<DashboardState> getDashboardState() {
+		if (!hasActiveSession()) {
+			return Optional.empty();
+		}
+		List<Team> teamList = getTeams();
+		Map<String, String> scores = new LinkedHashMap<>();
+		for (Team t : teamList) {
+			for (int r = 1; r <= QuizSession.MAX_ROUNDS; r++) {
+				if (hasRoundScore(t.id(), r)) {
+					scores.put(t.id() + ":" + r, formatRoundScore(t.id(), r));
+				}
+			}
+		}
+		List<Integer> done = completedRounds.keySet().stream().sorted().toList();
+		List<DashboardState.TeamInfo> infos = teamList.stream()
+			.map(t -> new DashboardState.TeamInfo(t.id(), t.displayName()))
+			.toList();
+		return Optional.of(new DashboardState(done, infos, scores));
 	}
 
 	// ── Leaderboard ───────────────────────────────────────────────────────────

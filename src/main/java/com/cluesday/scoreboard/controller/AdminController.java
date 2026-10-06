@@ -1,7 +1,10 @@
 package com.cluesday.scoreboard.controller;
 
+import com.cluesday.scoreboard.model.DashboardState;
 import com.cluesday.scoreboard.service.QuizService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -133,6 +136,15 @@ public class AdminController {
 		return "admin/dashboard";
 	}
 
+	/** Polled by open dashboards to pick up changes made on another device. */
+	@GetMapping("/state")
+	@ResponseBody
+	public ResponseEntity<DashboardState> state() {
+		return quizService.getDashboardState()
+			.map(s -> ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(s))
+			.orElse(ResponseEntity.noContent().build()); // quiz ended or discarded
+	}
+
 	@PostMapping("/end")
 	public String endQuiz() {
 		quizService.endQuiz();
@@ -159,22 +171,39 @@ public class AdminController {
 	@PostMapping("/round-score")
 	@ResponseBody
 	public ResponseEntity<String> setRoundScore(@RequestParam String teamId, @RequestParam int roundNum,
-			@RequestParam(required = false) String score) {
-		if (score == null || score.isBlank()) {
-			quizService.setRoundScore(teamId, roundNum, null);
-			return ResponseEntity.ok("ok");
-		}
+			@RequestParam(required = false) String score, @RequestParam(required = false) String expected) {
+		Double val;
+		Double exp;
 		try {
-			double val = Double.parseDouble(score.trim());
-			if (Double.isNaN(val) || Double.isInfinite(val)) {
-				return ResponseEntity.badRequest().body("invalid");
-			}
-			quizService.setRoundScore(teamId, roundNum, val);
-			return ResponseEntity.ok("ok");
+			val = parseScore(score);
+			exp = parseScore(expected);
 		}
 		catch (NumberFormatException e) {
 			return ResponseEntity.badRequest().body("invalid");
 		}
+		// Pages loaded before this check existed don't send "expected" — write
+		// unconditionally
+		if (expected == null) {
+			quizService.setRoundScore(teamId, roundNum, val);
+			return ResponseEntity.ok("ok");
+		}
+		if (!quizService.setRoundScoreIfUnchanged(teamId, roundNum, exp, val)) {
+			// Changed on another device — send the current value so the page can show it
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(quizService.formatRoundScore(teamId, roundNum));
+		}
+		return ResponseEntity.ok("ok");
+	}
+
+	/** Blank → null (no score); otherwise a finite number. */
+	private static Double parseScore(String s) {
+		if (s == null || s.isBlank()) {
+			return null;
+		}
+		double v = Double.parseDouble(s.trim());
+		if (Double.isNaN(v) || Double.isInfinite(v)) {
+			throw new NumberFormatException("not finite");
+		}
+		return v;
 	}
 
 	// ── History ───────────────────────────────────────────────────────────────

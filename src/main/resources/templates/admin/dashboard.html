@@ -47,6 +47,7 @@
   .score-input:focus { outline:none; border-color:var(--blue); }
   .score-input.invalid { border-color:var(--red); color:var(--red); }
   .score-input.saved { border-color:var(--green); }
+  .score-input.conflict { border-color:var(--amber); color:var(--amber); }
 
   /* ± toggle — only shown on iOS, whose decimal keypad has no minus key */
   .pm-btn {
@@ -312,17 +313,98 @@
     return Promise.all(Object.values(_pending).map(p => flushScore(p.inp)));
   }
 
+  // Saves for the same box go one at a time, so each carries the right "expected" value
+  const _inflight = {};
+  // Bumped when any save starts or finishes; a sync that overlaps a save is discarded
+  let _saveSeq = 0;
+
+  // ── Sync with other devices: poll /state, update boxes in place ────────────
+
+  let _syncing = false;
+
+  function pageTeamsSignature() {
+    return Array.from(document.querySelectorAll('.col-team[data-team-id]'))
+      .map(c => c.dataset.teamId + '=' + c.querySelector('.tname').textContent.trim()).sort().join('|');
+  }
+
+  function isBusy() {
+    const a = document.activeElement;
+    return Object.keys(_pending).length > 0
+      || (a && a.matches('.score-input, .edit-name-inp, #add-team-modal input'))
+      || document.querySelector('.edit-row.open')
+      || ['add-team-modal', 'end-modal'].some(id => document.getElementById(id).style.display === 'flex');
+  }
+
+  function syncState() {
+    if (_syncing || document.hidden) return;
+    _syncing = true;
+    const seq = _saveSeq;
+    fetch(API + '/state', {cache: 'no-store'})
+      .then(res => {
+        if (res.status === 204) { reloadKeepingScroll(); return; }   // quiz ended / discarded elsewhere → setup page
+        if (res.ok && seq === _saveSeq) return res.json().then(s => { if (seq === _saveSeq) applyState(s); });
+      })
+      .catch(() => {})
+      .finally(() => { _syncing = false; });
+  }
+
+  function applyState(s) {
+    const sig = s.teams.map(t => t.id + '=' + t.name).sort().join('|');
+    if (sig !== pageTeamsSignature()) {
+      if (!isBusy()) reloadKeepingScroll();   // teams added / removed / renamed — rebuild the table
+      return;
+    }
+    const changedTeams = new Set();
+    document.querySelectorAll('.score-input').forEach(inp => {
+      if (inp === document.activeElement || _pending[keyOf(inp)]) return;   // never clobber what's being typed
+      const server = s.scores[inp.dataset.teamId + ':' + inp.dataset.r] || '';
+      if ((inp.dataset.orig || '') === server) return;
+      inp.dataset.orig = server;
+      inp.value = server;
+      inp.classList.remove('invalid');
+      changedTeams.add(inp.dataset.teamId);
+    });
+    changedTeams.forEach(recalcTotal);
+    for (let r = 1; r <= 6; r++) doneCb(r).checked = s.done.includes(r);
+    syncRoundUi();
+  }
+
+  setInterval(syncState, 10000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncState(); });
+  window.addEventListener('pageshow', e => { if (e.persisted) syncState(); });   // back/forward cache
+
   function submitScore(inp) {
+    const key = keyOf(inp);
+    const run = () => sendScore(inp);
+    _inflight[key] = (_inflight[key] || Promise.resolve()).then(run, run);
+    return _inflight[key];
+  }
+
+  function sendScore(inp) {
     const v = inp.value.trim();
     if (!isValidScore(v)) return Promise.resolve();
     const {teamId, r} = inp.dataset;
-    const body = 'teamId=' + encodeURIComponent(teamId) + '&roundNum=' + r + '&score=' + encodeURIComponent(v);
-    return post('/round-score', body).then(res => {
+    // data-orig = last value the server confirmed; the server refuses the write if it has since changed
+    const body = 'teamId=' + encodeURIComponent(teamId) + '&roundNum=' + r + '&score=' + encodeURIComponent(v)
+      + '&expected=' + encodeURIComponent(inp.dataset.orig || '');
+    _saveSeq++;
+    return post('/round-score', body).finally(() => _saveSeq++).then(res => {
       if (res.ok) {
-        inp.classList.remove('invalid');
+        inp.dataset.orig = v;
+        inp.classList.remove('invalid', 'conflict');
         inp.classList.add('saved');
         setTimeout(() => inp.classList.remove('saved'), 1200);
         recalcTotal(teamId);
+      } else if (res.status === 409) {
+        return res.text().then(current => {
+          inp.value = current;
+          inp.dataset.orig = current;
+          inp.classList.remove('invalid');
+          inp.classList.add('conflict');
+          setTimeout(() => inp.classList.remove('conflict'), 4000);
+          recalcTotal(teamId);
+          toast('Changed on another device — updated to ' + (current || 'blank') + '. Re-enter if needed.');
+        });
       } else {
         inp.classList.add('invalid');
         toast('Score not saved — server rejected it');
@@ -412,8 +494,10 @@
     const revert = msg => { cb.checked = !cb.checked; syncRoundUi(); toast(msg); };
     // publish only after this round's typed scores have been sent
     const typed = Object.values(_pending).filter(p => p.inp.dataset.r === r).map(p => flushScore(p.inp));
+    _saveSeq++;
     Promise.all(typed)
       .then(() => post('/round/' + r + '/complete', 'complete=' + cb.checked))
+      .finally(() => _saveSeq++)
       .then(res => { if (!res.ok) revert('Round ' + r + ' not updated — server error'); })
       .catch(() => revert('Round ' + r + ' not updated — check your connection'));
   }
@@ -552,6 +636,7 @@
           <input type="text" class="score-input" inputmode="decimal" enterkeyhint="next" autocomplete="off"
                  th:data-team-id="${team.id()}" th:data-r="${r}"
                  th:value="${quizService.formatRoundScore(team.id(), r)}"
+                 th:data-orig="${quizService.formatRoundScore(team.id(), r)}"
                  placeholder="&#8212;"
                  oninput="onScoreInput(this)"
                  onblur="flushScore(this)"
