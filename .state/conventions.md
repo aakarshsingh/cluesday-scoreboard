@@ -32,7 +32,7 @@
 - Section dividers in large classes: `// ── Section ─────…`.
 - Controllers: return template names; `redirect:` after POST; flash messages via `RedirectAttributes` (`error`/`success`).
 - HTMX endpoints return fragments (`"admin/teams :: #team-list"`) or `@ResponseBody "ok"`; validation failures → `ResponseEntity.badRequest()`.
-- Service methods that mutate scores publish `ScoreChangedEvent`; `SseService` listens. Score-change SSE push is currently disabled (see Field Notes).
+- Service methods that mutate scores publish `ScoreChangedEvent`; `SseService` listens and pushes the re-rendered scoreboard fragment.
 - `@Transactional` on service write methods touching JPA.
 - Styling: hand-rolled Tailwind-like utility classes + CSS variables in `layout/head.html` (no Tailwind build). Dark theme, Sora + DM Mono fonts.
 - Code style: Spring Java Format (tabs, Spring brace/`catch` on new line).
@@ -50,12 +50,11 @@
 ## Field Notes
 
 - `ddl-auto: update` + local runs against Railway DB → entity changes alter the shared/prod schema immediately. Treat schema changes as deploy-level actions.
-- `README.md` is stale: mentions `/quizSetup`, uuid live URLs, Tailwind, `RoundType`, joker, fully in-memory, Java 21. Code is the source of truth.
 - Live URL is keyed by `sessionNumber`, not uuid. Only one active session at a time (`QuizService.activeSession`).
 - `QuizSession.MAX_ROUNDS = 6` is fixed; scoring is per-round totals (not per-question).
 - Tables 1–25 are "standard"; table 25 gets custom name `∞`. Extra teams can have any table number or a custom name.
 - In-memory quiz state is lost on restart; only `endQuiz()` persists to `quiz_result`.
-- `SseService.onScoreChanged` has `@EventListener` commented out pending prod verification of `ThymeleafConfig` `sseTemplateEngine` fix. Public board relies on page reload until re-enabled.
+- Open dashboards poll `GET /quizmaster/state` every 10s; score saves send `expected` and get 409 + current value if changed elsewhere (multi-device safety).
 - CSRF disabled; auth is HTTP Basic. `/admin/**` ADMIN-only, `/quizmaster/**` ADMIN or QM.
 - `ObjectMapper` bean is defined manually in `PasswordEncoderConfig` (Boot 4 / Jackson 3 default doesn't cover `com.fasterxml` 2.x).
 - `.mvn/jvm.config` sets `--enable-native-access=ALL-UNNAMED`.
