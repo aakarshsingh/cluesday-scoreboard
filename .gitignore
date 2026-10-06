@@ -24,6 +24,10 @@ hs_err_pid*
 replay_pid*
 
 target/
-.state/
+.state/*
+!.state/conventions.md
+!.state/maintain/
+!.state/maintain/**
 .vscode/
 ss/
+node_modules/
