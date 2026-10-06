@@ -26,7 +26,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class QuizService {
@@ -107,11 +109,28 @@ public class QuizService {
 
 	public Team addTeam(Integer tableNumber, String customName) {
 		String cn = (customName != null && !customName.isBlank()) ? customName.trim() : null;
-		var team = new Team(UUID.randomUUID().toString(), tableNumber, cn);
+		if (tableNumber == null && cn == null) {
+			throw new IllegalArgumentException("Pick a table or enter a team name.");
+		}
+		if (tableNumber != null && tableNumber < 1) {
+			throw new IllegalArgumentException("Table number must be 1 or higher.");
+		}
+		if (tableNumber != null && teams.values().stream().anyMatch(t -> tableNumber.equals(t.tableNumber()))) {
+			throw new IllegalArgumentException("Table " + tableNumber + " is already playing.");
+		}
+		if (cn == null && Integer.valueOf(25).equals(tableNumber)) {
+			cn = "∞";
+		}
+		var team = putTeam(tableNumber, cn);
+		events.publishEvent(new ScoreChangedEvent(this));
+		return team;
+	}
+
+	private Team putTeam(Integer tableNumber, String customName) {
+		var team = new Team(UUID.randomUUID().toString(), tableNumber, customName);
 		teams.put(team.id(), team);
 		// Backfill all completed rounds with 0 so the team appears on the scoreboard
 		completedRounds.keySet().forEach(r -> roundScores.putIfAbsent(team.id() + ":" + r, 0.0));
-		events.publishEvent(new ScoreChangedEvent(this));
 		return team;
 	}
 
@@ -126,23 +145,35 @@ public class QuizService {
 	}
 
 	public void deleteTeam(String teamId) {
-		teams.remove(teamId);
-		roundScores.keySet().removeIf(k -> k.startsWith(teamId + ":"));
+		removeTeam(teamId);
 		events.publishEvent(new ScoreChangedEvent(this));
 	}
 
+	private void removeTeam(String teamId) {
+		teams.remove(teamId);
+		roundScores.keySet().removeIf(k -> k.startsWith(teamId + ":"));
+	}
+
+	/**
+	 * Syncs standard tables (1–25) to the selection. Teams that stay selected keep their
+	 * id, name and scores, so this is safe to call mid-quiz.
+	 */
 	public void setStandardTables(List<Integer> tableNumbers) {
-		teams.entrySet().removeIf(e -> {
-			Integer tn = e.getValue().tableNumber();
-			return tn != null && tn >= 1 && tn <= 25;
-		});
-		if (tableNumbers != null) {
-			tableNumbers.forEach(n -> {
-				String customName = (n == 25) ? "∞" : null;
-				var team = new Team(UUID.randomUUID().toString(), n, customName);
-				teams.put(team.id(), team);
-			});
-		}
+		Set<Integer> selected = tableNumbers == null ? Set.of()
+				: tableNumbers.stream().filter(QuizService::isStandardTable).collect(Collectors.toSet());
+		teams.values()
+			.stream()
+			.filter(t -> isStandardTable(t.tableNumber()) && !selected.contains(t.tableNumber()))
+			.map(Team::id)
+			.toList()
+			.forEach(this::removeTeam);
+		Set<Integer> present = getActiveStandardTables();
+		selected.stream().filter(n -> !present.contains(n)).sorted().forEach(n -> putTeam(n, (n == 25) ? "∞" : null));
+		events.publishEvent(new ScoreChangedEvent(this));
+	}
+
+	private static boolean isStandardTable(Integer tableNumber) {
+		return tableNumber != null && tableNumber >= 1 && tableNumber <= 25;
 	}
 
 	public List<Team> getTeams() {
@@ -152,11 +183,16 @@ public class QuizService {
 			.toList();
 	}
 
+	public List<Integer> getFreeStandardTables() {
+		Set<Integer> taken = getActiveStandardTables();
+		return IntStream.rangeClosed(1, 25).filter(n -> !taken.contains(n)).boxed().toList();
+	}
+
 	public Set<Integer> getActiveStandardTables() {
 		return teams.values()
 			.stream()
 			.map(Team::tableNumber)
-			.filter(tn -> tn != null && tn >= 1 && tn <= 25)
+			.filter(QuizService::isStandardTable)
 			.collect(Collectors.toSet());
 	}
 
@@ -230,23 +266,35 @@ public class QuizService {
 	// ── Leaderboard ───────────────────────────────────────────────────────────
 
 	public List<TeamResult> computeLeaderboard() {
+		return leaderboard(r -> true);
+	}
+
+	/**
+	 * Leaderboard for the public scoreboard: only rounds marked complete count, so scores
+	 * entered for an unpublished round don't leak into totals or ranking.
+	 */
+	public List<TeamResult> computePublicLeaderboard() {
+		return leaderboard(this::isRoundComplete);
+	}
+
+	private List<TeamResult> leaderboard(IntPredicate includeRound) {
 		if (activeSession == null) {
 			return List.of();
 		}
 		return teams.values()
 			.stream()
-			.map(this::computeTeamResult)
+			.map(t -> computeTeamResult(t, includeRound))
 			.sorted(Comparator.comparingDouble(TeamResult::grandTotal)
 				.reversed()
 				.thenComparingInt(r -> r.tableNumber() != null ? r.tableNumber() : Integer.MAX_VALUE))
 			.toList();
 	}
 
-	private TeamResult computeTeamResult(Team team) {
+	private TeamResult computeTeamResult(Team team, IntPredicate includeRound) {
 		Map<Integer, Double> roundTotals = new LinkedHashMap<>();
 		for (int r = 1; r <= QuizSession.MAX_ROUNDS; r++) {
-			// null = not yet scored (shows as — on scoreboard)
-			roundTotals.put(r, roundScores.get(team.id() + ":" + r));
+			// null = not yet scored, or excluded (shows as — on scoreboard)
+			roundTotals.put(r, includeRound.test(r) ? roundScores.get(team.id() + ":" + r) : null);
 		}
 		double grand = roundTotals.values().stream().filter(Objects::nonNull).mapToDouble(Double::doubleValue).sum();
 		return new TeamResult(team.id(), team.tableNumber(), team.customName(),

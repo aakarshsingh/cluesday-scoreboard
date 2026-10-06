@@ -1,64 +1,38 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<table id="scoreboard" th:fragment="table"
-       style="width:100%;border-collapse:collapse;font-size:14px;font-family:'Sora',sans-serif;">
+<!-- Styles live in public/scoreboard.html (.sb-*) so SSE swaps keep them -->
+<table id="scoreboard" class="sb-table" th:fragment="table">
   <thead>
-    <tr style="border-bottom:2px solid #1e2438;">
-      <th onclick="sortSB(0)"
-          style="text-align:left;padding:10px 8px;color:#4e5472;font-size:11px;font-weight:500;
-                 width:32px;cursor:pointer;user-select:none;white-space:nowrap;">
-        # <span style="font-size:9px;">&#8597;</span></th>
-      <th onclick="sortSB(1)"
-          style="text-align:left;padding:10px 8px;color:#4e5472;font-size:11px;font-weight:500;
-                 width:56px;cursor:pointer;user-select:none;white-space:nowrap;">
-        T# <span style="font-size:9px;">&#8597;</span></th>
+    <tr>
+      <th class="sb-rank" onclick="sortSB(0)">#</th>
+      <th class="sb-team" onclick="sortSB(1)">Team <span class="sb-arrow">&#8597;</span></th>
       <th th:each="r, ri : ${#numbers.sequence(1, quizSession.maxRounds())}"
           th:if="${completedRounds.contains(r)}"
+          class="sb-round"
           th:attr="onclick='sortSB(' + ${ri.index + 2} + ')'"
-          th:text="'R' + ${r}"
-          style="text-align:center;padding:10px 10px;color:#4e5472;font-size:11px;font-weight:500;
-                 min-width:56px;border-left:1px solid #1e2438;cursor:pointer;user-select:none;white-space:nowrap;">
-      </th>
-      <th th:attr="onclick='sortSB(' + (${#sets.size(completedRounds)} + 2) + ')'"
-          style="text-align:center;padding:10px 14px;color:#dde1f0;font-size:11px;font-weight:600;
-                 border-left:1px solid #1e2438;cursor:pointer;user-select:none;white-space:nowrap;">
-        Total <span style="font-size:9px;color:#4e5472;">&#8597;</span></th>
+          th:text="'R' + ${r}">R1</th>
+      <th class="sb-total" th:attr="onclick='sortSB(' + (${#sets.size(completedRounds)} + 2) + ')'">
+        Total <span class="sb-arrow">&#8597;</span></th>
     </tr>
   </thead>
   <tbody>
-    <tr th:each="result, iter : ${leaderboard}"
-        data-row="1"
-        th:style="${iter.index == 0} ? 'background:#1a1300;' : ''"
-        style="border-bottom:1px solid #13161f;">
-
-      <td style="padding:10px 8px;color:#4e5472;font-family:'DM Mono',monospace;font-size:12px;"
-          th:text="${iter.index + 1}"></td>
-
-      <td style="padding:10px 8px;font-family:'DM Mono',monospace;font-size:14px;font-weight:600;"
-          th:style="${iter.index == 0} ? 'color:#f0a500;' : 'color:#7a9fff;'"
-          th:text="${result.displayName()}">T1</td>
-
+    <tr th:each="result, iter : ${leaderboard}" data-row="1"
+        th:classappend="${iter.index == 0} ? 'sb-leader'">
+      <td class="sb-rank" th:text="${iter.index + 1}">1</td>
+      <td class="sb-team" th:text="${result.displayName()}" th:title="${result.displayName()}">T1</td>
       <td th:each="r : ${#numbers.sequence(1, quizSession.maxRounds())}"
           th:if="${completedRounds.contains(r)}"
-          th:with="pts=${result.roundTotals().get(r)}"
-          style="text-align:center;padding:10px 10px;border-left:1px solid #1e2438;">
-        <span th:if="${pts != null}"
-              th:text="${#numbers.formatDecimal(pts, 1, 1)}"
-              style="color:#dde1f0;font-family:'DM Mono',monospace;"></span>
-        <span th:unless="${pts != null}"
-              style="color:#2a2e40;font-family:'DM Mono',monospace;">&#8212;</span>
+          class="sb-round"
+          th:with="txt=${result.roundText(r)}">
+        <span th:if="${!txt.isEmpty()}" th:text="${txt}">0</span>
+        <span th:if="${txt.isEmpty()}" class="sb-empty">&#8212;</span>
       </td>
-
-      <td th:style="${iter.index == 0} ? 'text-align:center;padding:10px 14px;font-weight:700;font-size:16px;border-left:1px solid #1e2438;font-family:DM Mono,monospace;color:#f0a500;' : 'text-align:center;padding:10px 14px;font-weight:700;font-size:16px;border-left:1px solid #1e2438;font-family:DM Mono,monospace;color:#dde1f0;'"
-          th:text="${#numbers.formatDecimal(result.grandTotal(), 1, 1)}">0</td>
+      <td class="sb-total" th:text="${result.totalText()}">0</td>
     </tr>
 
     <tr th:if="${#lists.isEmpty(leaderboard)}">
-      <td colspan="99"
-          style="text-align:center;padding:48px 20px;color:#4e5472;font-size:13px;">
-        Scores appear here once rounds are marked complete
-      </td>
+      <td colspan="99" class="sb-none">Scores appear here once rounds are marked complete</td>
     </tr>
   </tbody>
 </table>

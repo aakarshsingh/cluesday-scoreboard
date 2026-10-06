@@ -58,6 +58,8 @@
 
   <!-- Team list -->
   <ul id="team-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:24px;">
+    <li th:if="${error}" class="text-sm text-center" style="color:var(--red);padding:4px 0;"
+        th:text="${error}"></li>
     <li th:each="team : ${teams}"
         class="card" style="padding:10px 16px;display:flex;align-items:center;gap:12px;">
       <span class="mono font-medium text-amber" th:text="${team.displayName()}">T1</span>

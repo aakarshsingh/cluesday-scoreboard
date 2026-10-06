@@ -13,12 +13,12 @@
 </div>
 
 <!-- Live scoreboard -->
-<div th:unless="${ended}" style="max-width:680px;margin:0 auto;padding:24px 16px;">
+<div th:unless="${ended}" class="sb-page">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+  <div class="sb-head">
     <div>
       <div class="mono text-xs text-muted uppercase tracking-widest" style="margin-bottom:4px;">Live</div>
-      <h1 style="font-size:22px;font-weight:700;" th:text="${quizSession.name()}">Cluesday</h1>
+      <h1 class="sb-title" th:text="${quizSession.name()}">Cluesday</h1>
     </div>
     <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--green);">
       <span id="status-dot"
@@ -28,19 +28,60 @@
     </span>
   </div>
 
-  <div id="scoreboard-container" class="card" style="overflow:hidden;">
+  <div id="scoreboard-container" class="card" style="overflow-x:auto;">
     <th:block th:replace="~{fragments/scoreboard-table :: table}"></th:block>
   </div>
 
   <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;">
-    Click any column header to sort
+    Tap a column header to sort
   </p>
 </div>
 
 <style>
   @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.35;} }
-  #scoreboard th { transition: color 150ms; }
-  #scoreboard th:hover { color: var(--text) !important; }
+
+  .sb-page { max-width:680px; margin:0 auto; padding:24px 16px; }
+  .sb-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .sb-title { font-size:22px; font-weight:700; }
+
+  /* ── Scoreboard table (fragments/scoreboard-table) ── */
+  .sb-table { width:100%; border-collapse:collapse; font-size:14px; font-family:'DM Mono',monospace; }
+  .sb-table th {
+    color:var(--muted); font-size:11px; font-weight:500; font-family:'Sora',sans-serif;
+    padding:10px 8px; cursor:pointer; user-select:none; white-space:nowrap;
+    border-bottom:2px solid var(--border); transition:color 150ms;
+  }
+  .sb-table th:hover { color:var(--text); }
+  .sb-table td { padding:10px 8px; border-bottom:1px solid #13161f; white-space:nowrap; }
+  .sb-arrow { font-size:9px; }
+  .sb-rank  { text-align:left; width:28px; color:var(--muted); font-size:12px; }
+  .sb-team  { text-align:left; font-weight:600; color:#7a9fff; max-width:160px; overflow:hidden; text-overflow:ellipsis; }
+  .sb-round { text-align:center; border-left:1px solid var(--border); color:var(--text); }
+  .sb-total { text-align:center; border-left:1px solid var(--border); font-weight:700; font-size:16px; color:var(--text); }
+  th.sb-total { color:var(--text); font-weight:600; }
+  .sb-empty { color:#2a2e40; }
+  .sb-none  { text-align:center; padding:48px 20px !important; color:var(--muted); font-size:13px; font-family:'Sora',sans-serif; white-space:normal !important; }
+  .sb-leader td { background:#1a1300; }
+  .sb-leader .sb-team, .sb-leader .sb-total { color:var(--amber); }
+
+  /* Phones: fit all 6 rounds + total in one screenshot, no sideways scroll */
+  @media (max-width:480px) {
+    .sb-page { padding:12px 8px; }
+    .sb-head { margin-bottom:12px; }
+    .sb-title { font-size:18px; }
+    .sb-table { font-size:12px; }
+    .sb-table th { font-size:10px; padding:6px 3px; }
+    .sb-table td { padding:6px 3px; }
+    .sb-arrow { display:none; }
+    .sb-rank  { width:18px; font-size:10px; }
+    .sb-team  { max-width:92px; }
+    .sb-total { font-size:13px; }
+  }
+  @media (max-width:380px) {
+    .sb-page { padding:10px 4px; }
+    .sb-table th, .sb-table td { padding:6px 2px; }
+    .sb-team { max-width:80px; }
+  }
 </style>
 
 <script th:unless="${ended}" th:inline="javascript">

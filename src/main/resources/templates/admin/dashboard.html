@@ -31,15 +31,15 @@
   /* header sticky needs higher z so body sticky cells don't bleed through */
   thead .col-team, thead .col-total { z-index:3; background:var(--bg); }
 
-  /* Score input */
+  /* Score input — 16px font stops iOS Safari zooming in on focus */
   .score-input {
-    width:58px;
+    width:64px;
     text-align:center;
     background:var(--surf2);
     border:1px solid var(--border);
     border-radius:4px;
-    padding:5px 4px;
-    font-size:13px;
+    padding:6px 4px;
+    font-size:16px;
     font-family:'DM Mono',monospace;
     color:var(--text);
     transition:border-color 120ms;
@@ -48,29 +48,87 @@
   .score-input.invalid { border-color:var(--red); color:var(--red); }
   .score-input.saved { border-color:var(--green); }
 
+  /* ± toggle — only shown on iOS, whose decimal keypad has no minus key */
+  .pm-btn {
+    display:none;
+    background:var(--surf2); border:1px solid var(--border); border-radius:4px;
+    color:var(--muted); font-size:14px; padding:6px 7px; margin-left:3px; cursor:pointer;
+  }
+  .ios .pm-btn { display:inline-block; }
+
   /* Round complete checkbox */
-  .done-cb { accent-color:var(--green); width:14px; height:14px; cursor:pointer; margin-top:4px; }
+  .done-lbl { display:flex; align-items:center; gap:5px; cursor:pointer; padding:4px 6px; }
+  .done-cb { accent-color:var(--green); width:20px; height:20px; cursor:pointer; margin:0; }
 
   /* Edit controls */
   .edit-btn {
     background:none; border:none; color:var(--muted);
-    cursor:pointer; font-size:13px; padding:1px 4px;
+    cursor:pointer; font-size:16px; padding:6px 8px;
     border-radius:3px; line-height:1;
   }
   .edit-btn:hover { color:var(--amber); }
-  .edit-row { display:none; align-items:center; gap:3px; margin-top:3px; }
+  .edit-row { display:none; align-items:center; gap:2px; margin-top:4px; }
   .edit-row.open { display:flex; }
   .edit-name-inp {
-    flex:1; min-width:55px; max-width:90px;
+    flex:1; min-width:70px; max-width:110px;
     background:var(--surf2); border:1px solid var(--amber);
-    border-radius:4px; padding:3px 5px;
-    font-size:12px; color:var(--text); font-family:'Sora',sans-serif;
+    border-radius:4px; padding:4px 6px;
+    font-size:16px; color:var(--text); font-family:'Sora',sans-serif;
   }
   .edit-name-inp:focus { outline:none; }
-  .ic-btn { background:none; border:none; cursor:pointer; font-size:13px; padding:1px 3px; }
+  .ic-btn { background:none; border:none; cursor:pointer; font-size:18px; padding:6px 7px; line-height:1; }
   .ic-save { color:var(--green); }
-  .ic-del  { color:var(--red); }
+  .ic-del  { color:var(--red); margin-left:10px; }
   .ic-x    { color:var(--muted); }
+
+  /* Header buttons */
+  .hdr-btn { padding:9px 12px; font-size:13px; white-space:nowrap; }
+  /* Phones: no room for the URL text — the Copy button is enough */
+  @media (max-width:480px) { #pub-url { display:none; } }
+
+  /* ── Round bar: pick one round to score (phones) or All ───────────────── */
+  #round-bar { position:sticky; top:0; z-index:6; background:var(--bg); padding:6px 0 8px; }
+  .rb-tabs { display:flex; gap:4px; }
+  .rb-tab {
+    flex:1; padding:10px 0; border-radius:6px; cursor:pointer;
+    font-family:'DM Mono',monospace; font-size:13px;
+    background:var(--surf2); border:1px solid var(--border); color:var(--muted);
+  }
+  .rb-tab.cur { border-color:var(--amber); color:var(--amber); background:#1a1300; }
+  .rb-tick { display:none; margin-left:2px; color:var(--green); }
+  .rb-tab.done .rb-tick { display:inline; }
+  .rb-done {
+    display:block; width:100%; margin-top:6px; padding:11px; border-radius:6px; cursor:pointer;
+    font-family:'Sora',sans-serif; font-size:14px; font-weight:600;
+    background:#0f2d18; border:1px solid var(--green); color:var(--green);
+  }
+  .rb-done.is-done { background:var(--surf2); border-color:var(--border); color:var(--muted); font-weight:500; }
+  body.show-all .rb-done { display:none; }
+
+  /* One-round view: hide other round columns, roomier inputs, sticky column headers */
+  .dash-table[data-show="1"] .rc:not([data-r="1"]),
+  .dash-table[data-show="2"] .rc:not([data-r="2"]),
+  .dash-table[data-show="3"] .rc:not([data-r="3"]),
+  .dash-table[data-show="4"] .rc:not([data-r="4"]),
+  .dash-table[data-show="5"] .rc:not([data-r="5"]),
+  .dash-table[data-show="6"] .rc:not([data-r="6"]) { display:none; }
+  body.show-one #table-wrap { overflow:visible !important; } /* beats the inline overflow-x so thead can stick to the page */
+  body.show-one .dash-table thead th { position:sticky; top:var(--bar-h, 0px); z-index:4; background:var(--bg); }
+  body.show-one .dash-table .score-input { width:110px; }
+  body.show-one .dash-table th .done-lbl { display:none; }
+
+  /* Add-team modal: free table picker */
+  .free-tbl { display:flex; justify-content:center; cursor:pointer; }
+  .free-tbl input { position:absolute; opacity:0; width:0; height:0; }
+  .free-tbl .table-btn { width:44px; height:44px; font-size:14px; }
+  .free-tbl input:checked + .table-btn { border-color:var(--amber); background:#3d2f00; color:var(--amber); }
+
+  /* Save-failure toast */
+  #toast {
+    display:none; position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+    z-index:200; background:#3d1212; border:1px solid var(--red); color:var(--red);
+    border-radius:6px; padding:10px 16px; font-size:13px; max-width:90vw; text-align:center;
+  }
 </style>
 
 <!-- End Quiz modal -->
@@ -99,17 +157,30 @@
 <div id="add-team-modal"
      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;
             align-items:center;justify-content:center;">
-  <div class="card p-6" style="max-width:320px;width:90%;">
-    <h3 class="font-semibold mb-4">Add Team</h3>
-    <form method="post" action="/quizmaster/teams/add-during-quiz">
-      <div class="mb-3">
-        <label class="block text-xs text-muted" style="margin-bottom:6px;">Table # <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-        <input type="number" name="tableNumber" class="field" placeholder="e.g. 7"/>
+  <div class="card p-5" style="max-width:340px;width:92%;max-height:92vh;overflow-y:auto;">
+    <h3 class="font-semibold mb-1">Add Late Team</h3>
+    <p class="text-xs text-muted mb-4">Gets 0 for rounds already marked done.</p>
+    <form method="post" action="/quizmaster/teams/add-during-quiz" onsubmit="return onAddTeamSubmit(this)">
+      <label class="block text-xs text-muted" style="margin-bottom:6px;">Free tables</label>
+      <div class="grid-5 mb-3" th:unless="${#lists.isEmpty(freeTables)}">
+        <label th:each="n : ${freeTables}" class="free-tbl">
+          <input type="radio" name="tableNumber" th:value="${n}" onchange="onFreeTablePick(this)"/>
+          <span class="table-btn" th:text="${n == 25} ? '∞' : ${n}">1</span>
+        </label>
       </div>
-      <div class="mb-5">
-        <label class="block text-xs text-muted" style="margin-bottom:6px;">Name <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
-        <input type="text" name="customName" class="field" placeholder="e.g. Late Table"/>
+      <p th:if="${#lists.isEmpty(freeTables)}" class="text-xs text-muted mb-3">All tables 1–25 are playing.</p>
+      <div class="grid-2 mb-4">
+        <div>
+          <label class="block text-xs text-muted" style="margin-bottom:6px;">Other table #</label>
+          <input type="text" inputmode="numeric" pattern="[0-9]*" name="otherTable" class="field"
+                 placeholder="e.g. 31" autocomplete="off" oninput="onOtherTableInput(this)"/>
+        </div>
+        <div>
+          <label class="block text-xs text-muted" style="margin-bottom:6px;">Name (optional)</label>
+          <input type="text" name="customName" class="field" placeholder="e.g. Late Lads" autocomplete="off"/>
+        </div>
       </div>
+      <p id="add-team-err" class="text-xs mb-3" style="color:var(--red);display:none;"></p>
       <div style="display:flex;gap:8px;">
         <button type="submit" class="btn-primary flex-1">Add</button>
         <button type="button" onclick="closeModal('add-team-modal')" class="btn-ghost flex-1">Cancel</button>
@@ -132,14 +203,87 @@
   function openModal(id) { document.getElementById(id).style.display = 'flex'; }
   function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+  // iOS decimal keypad has no minus key — reveal the ± buttons there
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    document.documentElement.classList.add('ios');
+  }
+
+  let _toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => el.style.display = 'none', 4000);
+  }
+
+  // ── Scroll position survives reloads (rename / delete / add team) ──────────
+
+  function saveScroll() {
+    try {
+      sessionStorage.setItem('dashScroll', JSON.stringify({
+        x: document.getElementById('table-wrap').scrollLeft, y: window.scrollY
+      }));
+    } catch (e) {}
+  }
+
+  function reloadKeepingScroll() {
+    flushAll().then(() => { saveScroll(); location.reload(); });
+  }
+
+  // ── Add late team ──────────────────────────────────────────────────────────
+
+  function onFreeTablePick(radio) {
+    radio.form.otherTable.value = '';
+  }
+
+  function onOtherTableInput(inp) {
+    if (inp.value.trim()) inp.form.querySelectorAll('input[name="tableNumber"]').forEach(r => r.checked = false);
+  }
+
+  function onAddTeamSubmit(form) {
+    const err = document.getElementById('add-team-err');
+    const picked = form.querySelector('input[name="tableNumber"]:checked');
+    const other = form.otherTable.value.trim();
+    const name = form.customName.value.trim();
+    let msg = '';
+    if (other && !/^[1-9]\d*$/.test(other)) msg = 'Table # must be a whole number.';
+    else if (!picked && !other && !name) msg = 'Pick a table or enter a team name.';
+    if (msg) { err.textContent = msg; err.style.display = 'block'; return false; }
+    saveScroll();
+    return true;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const flash = document.getElementById('flash-error');
+    if (flash) toast(flash.textContent);
+    if (document.querySelector('.dash-table')) {
+      let saved = null;
+      try { saved = sessionStorage.getItem(roundKey()); } catch (e) {}
+      const phone = window.matchMedia('(max-width: 640px)').matches;
+      showRound(saved || (phone ? firstOpenRound() : 'all'));
+    }
+    try {
+      const s = JSON.parse(sessionStorage.getItem('dashScroll'));
+      sessionStorage.removeItem('dashScroll');
+      if (s) {
+        document.getElementById('table-wrap').scrollLeft = s.x;
+        window.scrollTo(0, s.y);
+      }
+    } catch (e) {}
+  });
+
+  // ── Score entry ────────────────────────────────────────────────────────────
+
   // Validate: +/- prefix, integer or decimal
   function isValidScore(s) {
     if (s === '' || s === null) return true;
     return /^[+-]?(\d+\.?\d*|\.\d+)$/.test(s.trim());
   }
 
-  const _dbt = {};
-  function debounce(key, fn, ms) { clearTimeout(_dbt[key]); _dbt[key] = setTimeout(fn, ms || 700); }
+  // key → {timer, inp} for scores typed but not yet sent
+  const _pending = {};
+  function keyOf(inp) { return inp.dataset.teamId + '-' + inp.dataset.r; }
 
   function onScoreInput(inp) {
     const v = inp.value.trim();
@@ -150,16 +294,30 @@
       inp.classList.remove('saved');
       return;
     }
-    const {teamId, r} = inp.dataset;
-    debounce('sc-' + teamId + '-' + r, () => submitScore(inp));
+    const key = keyOf(inp);
+    if (_pending[key]) clearTimeout(_pending[key].timer);
+    _pending[key] = {inp, timer: setTimeout(() => { delete _pending[key]; submitScore(inp); }, 700)};
+  }
+
+  // Send now if a save is still waiting on the debounce
+  function flushScore(inp) {
+    const p = _pending[keyOf(inp)];
+    if (!p) return Promise.resolve();
+    clearTimeout(p.timer);
+    delete _pending[keyOf(inp)];
+    return submitScore(inp);
+  }
+
+  function flushAll() {
+    return Promise.all(Object.values(_pending).map(p => flushScore(p.inp)));
   }
 
   function submitScore(inp) {
     const v = inp.value.trim();
-    if (!isValidScore(v)) return;
+    if (!isValidScore(v)) return Promise.resolve();
     const {teamId, r} = inp.dataset;
     const body = 'teamId=' + encodeURIComponent(teamId) + '&roundNum=' + r + '&score=' + encodeURIComponent(v);
-    post('/round-score', body).then(res => {
+    return post('/round-score', body).then(res => {
       if (res.ok) {
         inp.classList.remove('invalid');
         inp.classList.add('saved');
@@ -167,8 +325,30 @@
         recalcTotal(teamId);
       } else {
         inp.classList.add('invalid');
+        toast('Score not saved — server rejected it');
       }
+    }).catch(() => {
+      inp.classList.add('invalid');
+      toast('Score not saved — check your connection and re-enter it');
     });
+  }
+
+  // Enter: save and jump to the next team in the same round
+  function onScoreKey(e, inp) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    flushScore(inp);
+    const col = Array.from(document.querySelectorAll('.score-input[data-r="' + inp.dataset.r + '"]'));
+    const next = col[col.indexOf(inp) + 1];
+    if (next) next.focus(); else inp.blur();
+  }
+
+  function toggleSign(btn) {
+    const inp = btn.previousElementSibling;
+    const v = inp.value.trim();
+    inp.value = v.startsWith('-') ? v.slice(1) : '-' + v.replace(/^\+/, '');
+    onScoreInput(inp);
+    inp.focus();
   }
 
   function recalcTotal(teamId) {
@@ -181,12 +361,65 @@
     if (el) el.textContent = (sum % 1 === 0) ? String(sum) : sum.toFixed(1);
   }
 
+  // ── Round view: one round at a time (phones) or all ────────────────────────
+
+  function roundKey() { return 'dashRound:' + document.querySelector('.dash-table').dataset.session; }
+  function doneCb(r) { return document.querySelector('.done-cb[data-r="' + r + '"]'); }
+
+  function firstOpenRound() {
+    for (let r = 1; r <= 6; r++) if (!doneCb(r).checked) return String(r);
+    return '6';
+  }
+
+  function showRound(r) {
+    document.querySelector('.dash-table').dataset.show = r;
+    document.body.classList.toggle('show-all', r === 'all');
+    document.body.classList.toggle('show-one', r !== 'all');
+    document.querySelectorAll('.rb-tab').forEach(t => t.classList.toggle('cur', t.dataset.r === r));
+    try { sessionStorage.setItem(roundKey(), r); } catch (e) {}
+    syncRoundUi();
+    setBarHeight();
+  }
+
+  function syncRoundUi() {
+    document.querySelectorAll('.rb-tab[data-r]:not([data-r="all"])').forEach(t =>
+      t.classList.toggle('done', doneCb(t.dataset.r).checked));
+    const r = document.querySelector('.dash-table').dataset.show;
+    const btn = document.getElementById('rb-done');
+    if (r === 'all') return;
+    const done = doneCb(r).checked;
+    btn.classList.toggle('is-done', done);
+    btn.textContent = done ? 'R' + r + ' is live on the scoreboard ✓  (tap to hide)' : 'Mark R' + r + ' done → publish';
+  }
+
+  function toggleCurrentDone() {
+    const r = document.querySelector('.dash-table').dataset.show;
+    if (r === 'all') return;
+    const cb = doneCb(r);
+    cb.checked = !cb.checked;
+    markRoundComplete(cb);
+  }
+
+  function setBarHeight() {
+    const bar = document.getElementById('round-bar');
+    if (bar) document.documentElement.style.setProperty('--bar-h', bar.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', setBarHeight);
+
   function markRoundComplete(cb) {
-    post('/round/' + cb.dataset.r + '/complete', 'complete=' + cb.checked);
+    const r = cb.dataset.r;
+    syncRoundUi();
+    const revert = msg => { cb.checked = !cb.checked; syncRoundUi(); toast(msg); };
+    // publish only after this round's typed scores have been sent
+    const typed = Object.values(_pending).filter(p => p.inp.dataset.r === r).map(p => flushScore(p.inp));
+    Promise.all(typed)
+      .then(() => post('/round/' + r + '/complete', 'complete=' + cb.checked))
+      .then(res => { if (!res.ok) revert('Round ' + r + ' not updated — server error'); })
+      .catch(() => revert('Round ' + r + ' not updated — check your connection'));
   }
 
   function copyUrl() {
-    const val = document.getElementById('pub-url').value;
+    const val = document.getElementById('pub-url').textContent.trim();
     navigator.clipboard.writeText(window.location.origin + val);
     const btn = document.getElementById('copy-btn');
     const orig = btn.textContent;
@@ -223,7 +456,8 @@
     const newName = cell.querySelector('.edit-name-inp').value.trim();
     if (!newName) { cancelEdit(cell); return; }
     post('/teams/rename', 'teamId=' + encodeURIComponent(teamId) + '&newName=' + encodeURIComponent(newName))
-      .then(() => location.reload());
+      .then(reloadKeepingScroll)
+      .catch(() => toast('Rename failed — check your connection'));
   }
 
   function deleteTeam(btn) {
@@ -232,9 +466,13 @@
     const name = cell.querySelector('.tname').textContent.trim();
     if (!confirm('Delete "' + name + '" and all their scores?')) return;
     post('/teams/delete', 'teamId=' + encodeURIComponent(teamId))
-      .then(() => location.reload());
+      .then(reloadKeepingScroll)
+      .catch(() => toast('Delete failed — check your connection'));
   }
 </script>
+
+<div id="toast" role="alert"></div>
+<div id="flash-error" th:if="${error}" th:text="${error}" hidden></div>
 
 <!-- Header bar -->
 <div class="card" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;
@@ -244,39 +482,45 @@
     <h1 class="font-semibold" style="font-size:15px;line-height:1.2;" th:text="${quizSession.name()}">Cluesday</h1>
   </div>
   <div style="display:flex;flex:1;align-items:center;gap:8px;min-width:0;">
-    <input id="pub-url" readonly type="text"
-           th:value="'/live/' + ${quizSession.sessionNumber()}"
-           style="flex:1;min-width:0;background:var(--surf2);border:1px solid var(--border);
-                  border-radius:4px;padding:5px 10px;font-size:10px;color:var(--muted);
-                  font-family:'DM Mono',monospace;cursor:pointer;"
-           onclick="this.select()"/>
-    <button id="copy-btn" onclick="copyUrl()" class="btn-ghost"
-            style="padding:4px 10px;font-size:11px;white-space:nowrap;">Copy</button>
+    <span id="pub-url" class="mono"
+          th:text="'/live/' + ${quizSession.sessionNumber()}"
+          style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                 background:var(--surf2);border:1px solid var(--border);border-radius:4px;
+                 padding:8px 10px;font-size:12px;color:var(--muted);user-select:all;">/live/1</span>
+    <button id="copy-btn" onclick="copyUrl()" class="btn-ghost hdr-btn">Copy link</button>
   </div>
-  <div style="display:flex;gap:6px;flex-shrink:0;">
-    <button onclick="openModal('add-team-modal')"
-            class="btn-ghost" style="padding:5px 10px;font-size:11px;">+ Team</button>
-    <button onclick="openModal('end-modal')"
-            class="btn-danger" style="padding:5px 10px;font-size:11px;">End Quiz</button>
+  <div style="display:flex;gap:8px;flex-shrink:0;">
+    <button onclick="openModal('add-team-modal')" class="btn-ghost hdr-btn">+ Team</button>
+    <button onclick="openModal('end-modal')" class="btn-danger hdr-btn">End Quiz</button>
   </div>
 </div>
 
+<!-- Round bar — sticky; pick a round (or All) -->
+<div id="round-bar">
+  <div class="rb-tabs">
+    <button th:each="r : ${#numbers.sequence(1, 6)}" type="button" class="rb-tab"
+            th:data-r="${r}" onclick="showRound(this.dataset.r)"><span th:text="'R' + ${r}">R1</span><span class="rb-tick">&#10003;</span></button>
+    <button type="button" class="rb-tab" data-r="all" onclick="showRound('all')">All</button>
+  </div>
+  <button id="rb-done" type="button" class="rb-done" onclick="toggleCurrentDone()">Mark done</button>
+</div>
+
 <!-- Scoring table -->
-<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-  <table class="dash-table">
+<div id="table-wrap" style="overflow-x:auto;">
+  <table class="dash-table" data-show="all" th:data-session="${quizSession.sessionNumber()}">
     <thead>
       <tr>
         <th class="col-team" style="font-size:11px;font-weight:500;color:var(--muted);">Team</th>
-        <th th:each="r : ${#numbers.sequence(1, 6)}"
+        <th th:each="r : ${#numbers.sequence(1, 6)}" class="rc" th:data-r="${r}"
             style="text-align:center;font-size:11px;font-weight:500;color:var(--muted);min-width:74px;">
           <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
             <span class="mono" th:text="'R' + ${r}">R1</span>
-            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <label class="done-lbl">
               <input type="checkbox" class="done-cb"
                      th:checked="${quizService.isRoundComplete(r)}"
                      th:data-r="${r}"
                      onchange="markRoundComplete(this)"/>
-              <span style="font-size:10px;color:var(--muted);">done</span>
+              <span style="font-size:11px;color:var(--muted);">done</span>
             </label>
           </div>
         </th>
@@ -294,7 +538,7 @@
             <button class="edit-btn" onclick="toggleEdit(this)" title="Rename / delete">&#9998;</button>
           </div>
           <div class="edit-row">
-            <input type="text" class="edit-name-inp" th:value="${team.displayName()}"
+            <input type="text" class="edit-name-inp" autocomplete="off" th:value="${team.displayName()}"
                    onkeydown="if(event.key==='Enter')saveRename(this);
                               if(event.key==='Escape')cancelEdit(this);"/>
             <button class="ic-btn ic-save" onclick="saveRename(this)" title="Save">&#10003;</button>
@@ -304,13 +548,15 @@
         </td>
 
         <!-- Round score cells -->
-        <td th:each="r : ${#numbers.sequence(1, 6)}" style="text-align:center;padding:6px 4px;">
-          <input type="text" class="score-input"
+        <td th:each="r : ${#numbers.sequence(1, 6)}" class="rc" th:data-r="${r}" style="text-align:center;padding:6px 4px;">
+          <input type="text" class="score-input" inputmode="decimal" enterkeyhint="next" autocomplete="off"
                  th:data-team-id="${team.id()}" th:data-r="${r}"
                  th:value="${quizService.formatRoundScore(team.id(), r)}"
                  placeholder="&#8212;"
                  oninput="onScoreInput(this)"
-                 onkeydown="if(event.key==='Enter'){this.blur();submitScore(this);}"/>
+                 onblur="flushScore(this)"
+                 onkeydown="onScoreKey(event, this)"/><button
+                 type="button" class="pm-btn" tabindex="-1" onclick="toggleSign(this)">&#177;</button>
         </td>
 
         <!-- Total — sticky right -->

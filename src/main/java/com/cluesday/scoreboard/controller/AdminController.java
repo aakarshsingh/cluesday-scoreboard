@@ -33,9 +33,8 @@ public class AdminController {
 	public String setup(Model model, Authentication auth) {
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("activeSession", s));
 		model.addAttribute("today", LocalDate.now());
-		model.addAttribute("isAdmin", auth != null && auth.getAuthorities()
-			.stream()
-			.anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
+		model.addAttribute("isAdmin",
+				auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
 		return "admin/setup";
 	}
 
@@ -78,7 +77,12 @@ public class AdminController {
 	@PostMapping("/teams/add")
 	public String addTeam(@RequestParam(required = false) Integer tableNumber,
 			@RequestParam(required = false) String customName, Model model) {
-		quizService.addTeam(tableNumber, customName);
+		try {
+			quizService.addTeam(tableNumber, customName);
+		}
+		catch (IllegalArgumentException e) {
+			model.addAttribute("error", e.getMessage());
+		}
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("quizSession", s));
 		model.addAttribute("teams", quizService.getTeams());
 		model.addAttribute("activeTables", quizService.getActiveStandardTables());
@@ -87,11 +91,17 @@ public class AdminController {
 
 	@PostMapping("/teams/add-during-quiz")
 	public String addTeamDuringQuiz(@RequestParam(required = false) Integer tableNumber,
-			@RequestParam(required = false) String customName) {
+			@RequestParam(required = false) Integer otherTable, @RequestParam(required = false) String customName,
+			RedirectAttributes ra) {
 		if (!quizService.hasActiveSession()) {
 			return "redirect:/quizmaster";
 		}
-		quizService.addTeam(tableNumber, customName);
+		try {
+			quizService.addTeam(otherTable != null ? otherTable : tableNumber, customName);
+		}
+		catch (IllegalArgumentException e) {
+			ra.addFlashAttribute("error", e.getMessage());
+		}
 		return "redirect:/quizmaster/dashboard";
 	}
 
@@ -118,6 +128,7 @@ public class AdminController {
 		}
 		quizService.getActiveSession().ifPresent(s -> model.addAttribute("quizSession", s));
 		model.addAttribute("teams", quizService.getTeams());
+		model.addAttribute("freeTables", quizService.getFreeStandardTables());
 		model.addAttribute("quizService", quizService);
 		return "admin/dashboard";
 	}

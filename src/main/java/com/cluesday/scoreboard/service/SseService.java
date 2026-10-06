@@ -16,6 +16,7 @@ import org.thymeleaf.context.Context;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
@@ -43,12 +44,9 @@ public class SseService {
 		return emitter;
 	}
 
-	// SSE push on score change temporarily disabled — ClassLoaderTemplateResolver
-	// fix is in ThymeleafConfig but needs production verification first.
-	// Re-enable by un-commenting the @EventListener annotation.
-	// @EventListener
+	@EventListener
 	public void onScoreChanged(ScoreChangedEvent event) {
-		// broadcastScoreboard();
+		broadcastScoreboard();
 	}
 
 	@EventListener
@@ -83,14 +81,16 @@ public class SseService {
 		}
 		try {
 			var ctx = new Context();
-			ctx.setVariable("leaderboard", quizService.computeLeaderboard());
+			ctx.setVariable("leaderboard", quizService.computePublicLeaderboard());
 			ctx.setVariable("completedRounds", quizService.getCompletedRounds());
 			quizService.getActiveSession().ifPresent(s -> ctx.setVariable("quizSession", s));
-			String html = templateEngine.process("fragments/scoreboard-table :: table", ctx);
+			// "file :: fragment" syntax only works in view resolution; programmatic calls
+			// pass a selector
+			String html = templateEngine.process("fragments/scoreboard-table", Set.of("table"), ctx);
 			broadcast("score-update", html);
 		}
 		catch (Exception e) {
-			log.error("broadcastScoreboard failed: {}", e.getMessage());
+			log.error("broadcastScoreboard failed", e);
 		}
 	}
 

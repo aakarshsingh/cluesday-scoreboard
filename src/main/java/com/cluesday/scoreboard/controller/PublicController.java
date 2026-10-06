@@ -38,7 +38,7 @@ public class PublicController {
 		}
 
 		model.addAttribute("quizSession", session.get());
-		model.addAttribute("leaderboard", quizService.computeLeaderboard());
+		model.addAttribute("leaderboard", quizService.computePublicLeaderboard());
 		model.addAttribute("completedRounds", quizService.getCompletedRounds());
 		model.addAttribute("sessionNumber", sessionNumber);
 		return "public/scoreboard";
